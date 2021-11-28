@@ -1,0 +1,254 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "fullname" . }}-flink-config
+  labels:
+    app: {{ template "fullname" . }}
+data:
+  flink-conf.yaml: |
+    blob.server.port: 6124
+    jobmanager.rpc.address: {{ template "fullname" . }}-jobmanager
+    jobmanager.rpc.port: 6123
+    jobmanager.heap.mb: {{ .Values.flink.jobmanager_heap_mb }}
+    jobmanager.execution.failover-strategy: {{ .Values.flink.fo_strategy }}
+
+    state.backend: rocksdb
+    state.checkpoints.dir: hdfs://hadoop-hadoop-hdfs-nn.default.svc.cluster.local:9000/checkpoints/
+    state.backend.incremental: true
+    state.backend.async: true
+
+    taskmanager.heap.mb: {{ .Values.flink.taskmanager_heap_mb }}
+    taskmanager.heap.size: {{ .Values.flink.taskmanager_heap_mb }}
+    taskmanager.numberOfTaskSlots: {{ .Values.flink.num_slots_per_taskmanager }}
+    state.checkpoints.num-retained: 1
+
+    jobmanager.execution.num-standby-tasks: 0
+    jobmanager.execution.checkpoint-coordinator-backoff-mult: 3
+    jobmanager.execution.checkpoint-coordinator-backoff-base: 15000
+
+    taskmanager.inflight.type: spillable
+    taskmanager.inflight.spill.policy: availability
+    taskmanager.inflight.spill.availability-trigger: 0.3
+    taskmanager.inflight.spill.num-prefetch-buffers: 10
+    taskmanager.inflight.spill.sleep: 50
+    taskmanager.network.memory.sender-extra-buffers-per-channel: 10
+    taskmanager.network.memory.sender-extra-floating-buffers-per-gate: 2000
+
+    taskmanager.network.memory.fraction: 0.45
+    taskmanager.network.netty.determinantMemorySteal: 0.5
+    taskmanager.network.netty.determinantBufferSize: 8192
+    taskmanager.network.netty.determinantBuffersPerJob: 9000
+    taskmanager.network.netty.enableDeltaEncodingStrategy: true
+    taskmanager.network.netty.determinantDeltaEncodingStrategy: hierarchical 
+    
+    metrics.latency.history-size: 5
+    metrics.latency.granularity: single
+
+    taskmanager.memory.fraction: 0.5
+    taskmanager.network.memory.buffers-per-channel: 2
+    taskmanager.network.memory.floating-buffers-per-gate: 8
+    state.backend.rocksdb.localdir: /opt/flink/rocks/chk
+    taskmanager.tmp.dirs: /opt/flink/rocks/tmp
+
+    heartbeat.interval: 4000
+    heartbeat.timeout: 6000
+
+    taskmanager.network.request-backoff.initial: 500
+    taskmanager.network.request-backoff.max: 100000
+
+    akka.watch.heartbeat.pause: 500 s
+    akka.ask.timeout: 120 s
+
+    {{- if .Values.flink.config }}
+{{ .Values.flink.config | indent 4 }}
+    {{- end }}
+  log4j-console.properties: |
+    # This affects logging for both user code and Flink
+    log4j.rootLogger=INFO, console
+    
+    # Uncomment this if you want to _only_ change Flink's logging
+    log4j.logger.org.apache.flink=INFO
+
+    # The following lines keep the log level of common libraries/connectors on
+    # log level INFO. The root logger does not override this. You have to manually
+    # change the log levels here.
+    log4j.logger.akka=INFO
+    log4j.logger.org.apache.kafka=INFO
+    log4j.logger.org.apache.hadoop=INFO
+    log4j.logger.org.apache.zookeeper=INFO
+    
+    # Log all infos to the console
+    log4j.appender.console=org.apache.log4j.ConsoleAppender
+    log4j.appender.console.layout=org.apache.log4j.PatternLayout
+    log4j.appender.console.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    
+    # Suppress the irrelevant (wrong) warnings from the Netty channel handler
+    log4j.logger.org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline=ERROR, console
+  log4j-cli.properties: |
+    log4j.rootLogger=INFO, file
+
+    # Log all infos in the given file
+    log4j.appender.file=org.apache.log4j.FileAppender
+    log4j.appender.file.file=${log.file}
+    log4j.appender.file.append=false
+    log4j.appender.file.layout=org.apache.log4j.PatternLayout
+    log4j.appender.file.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    
+    
+    # Log output from org.apache.flink.yarn to the console. This is used by the
+    # CliFrontend class when using a per-job YARN cluster.
+    log4j.logger.org.apache.flink.yarn=INFO, console
+    log4j.logger.org.apache.flink.yarn.cli.FlinkYarnSessionCli=INFO, console
+    log4j.logger.org.apache.hadoop=INFO, console
+    
+    log4j.appender.console=org.apache.log4j.ConsoleAppender
+    log4j.appender.console.layout=org.apache.log4j.PatternLayout
+    log4j.appender.console.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    
+    # suppress the warning that hadoop native libraries are not loaded (irrelevant for the client)
+    log4j.logger.org.apache.hadoop.util.NativeCodeLoader=OFF
+    
+    # suppress the irrelevant (wrong) warnings from the netty channel handler
+    log4j.logger.org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline=ERROR, file
+  log4j.properties: |
+    # This affects logging for both user code and Flink
+    log4j.rootLogger=INFO, file
+    
+    # Uncomment this if you want to _only_ change Flink's logging
+    log4j.logger.org.apache.flink=INFO
+    
+    # The following lines keep the log level of common libraries/connectors on
+    # log level INFO. The root logger does not override this. You have to manually
+    # change the log levels here.
+    log4j.logger.akka=INFO
+    log4j.logger.org.apache.kafka=INFO
+    log4j.logger.org.apache.hadoop=INFO
+    log4j.logger.org.apache.zookeeper=INFO
+    
+    # Log all infos in the given file
+    log4j.appender.file=org.apache.log4j.FileAppender
+    log4j.appender.file.file=${log.file}
+    log4j.appender.file.append=false
+    log4j.appender.file.layout=org.apache.log4j.PatternLayout
+    log4j.appender.file.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    
+    # Suppress the irrelevant (wrong) warnings from the Netty channel handler
+    log4j.logger.org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline=ERROR, file
+  logback-console.xml: |
+    <configuration>
+      <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+          <encoder>
+              <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{60} %X{sourceThread} - %msg%n</pattern>
+          </encoder>
+      </appender>
+  
+      <!-- This affects logging for both user code and Flink -->
+      <root level="INFO">
+          <appender-ref ref="console"/>
+      </root>
+  
+      <!-- Uncomment this if you want to only change Flink's logging -->
+      <!--<logger name="org.apache.flink" level="INFO">-->
+          <!--<appender-ref ref="console"/>-->
+      <!--</logger>-->
+  
+      <!-- The following lines keep the log level of common libraries/connectors on
+           log level INFO. The root logger does not override this. You have to manually
+           change the log levels here. -->
+      <logger name="akka" level="INFO">
+          <appender-ref ref="console"/>
+      </logger>
+      <logger name="org.apache.kafka" level="INFO">
+          <appender-ref ref="console"/>
+      </logger>
+      <logger name="org.apache.hadoop" level="INFO">
+          <appender-ref ref="console"/>
+      </logger>
+      <logger name="org.apache.zookeeper" level="INFO">
+          <appender-ref ref="console"/>
+      </logger>
+  
+      <!-- Suppress the irrelevant (wrong) warnings from the Netty channel handler -->
+      <logger name="org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" level="ERROR">
+          <appender-ref ref="console"/>
+      </logger>
+    </configuration>
+  logback.xml: |
+    <configuration>
+      <appender name="file" class="ch.qos.logback.core.FileAppender">
+          <file>${log.file}</file>
+          <append>false</append>
+          <encoder>
+              <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{60} %X{sourceThread} - %msg%n</pattern>
+          </encoder>
+      </appender>
+  
+      <!-- This affects logging for both user code and Flink -->
+      <root level="INFO">
+          <appender-ref ref="file"/>
+      </root>
+  
+      <!-- Uncomment this if you want to only change Flink's logging -->
+      <!--<logger name="org.apache.flink" level="INFO">-->
+          <!--<appender-ref ref="file"/>-->
+      <!--</logger>-->
+  
+      <!-- The following lines keep the log level of common libraries/connectors on
+           log level INFO. The root logger does not override this. You have to manually
+           change the log levels here. -->
+      <logger name="akka" level="INFO">
+          <appender-ref ref="file"/>
+      </logger>
+      <logger name="org.apache.kafka" level="INFO">
+          <appender-ref ref="file"/>
+      </logger>
+      <logger name="org.apache.hadoop" level="INFO">
+          <appender-ref ref="file"/>
+      </logger>
+      <logger name="org.apache.zookeeper" level="INFO">
+          <appender-ref ref="file"/>
+      </logger>
+  
+      <!-- Suppress the irrelevant (wrong) warnings from the Netty channel handler -->
+      <logger name="org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" level="ERROR">
+          <appender-ref ref="file"/>
+      </logger>
+    </configuration>
+  log4j-yarn-session.properties: |
+    log4j.rootLogger=INFO, stdout
+
+    # Log all infos in the given file
+    log4j.appender.stdout=org.apache.log4j.ConsoleAppender
+    log4j.appender.stdout.layout=org.apache.log4j.PatternLayout
+    log4j.appender.stdout.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    
+    # suppress the irrelevant (wrong) warnings from the netty channel handler
+    log4j.logger.org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline=ERROR, stdout
+    log4j.logger.org.apache.zookeeper=WARN, stdout
+    log4j.logger.org.apache.flink.shaded.org.apache.curator.framework=WARN, stdout
+    log4j.logger.org.apache.flink.runtime.util.ZooKeeperUtils=WARN, stdout
+    log4j.logger.org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService=WARN, stdout
+  logback-yarn.xml: |
+    <configuration>
+        <appender name="file" class="ch.qos.logback.core.FileAppender">
+            <file>${log.file}</file>
+            <append>false</append>
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{60} %X{sourceThread} - %msg%n</pattern>
+            </encoder>
+        </appender>
+    
+        <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{60} %X{sourceThread} - %msg%n</pattern>
+            </encoder>
+        </appender>
+    
+        <logger name="ch.qos.logback" level="WARN" />
+        <root level="INFO">
+            <appender-ref ref="file"/>
+            <appender-ref ref="console"/>
+        </root>
+    </configuration>
+
+  core-site.xml: {{ quote (index .Values.hadoop "core-site.xml") }}

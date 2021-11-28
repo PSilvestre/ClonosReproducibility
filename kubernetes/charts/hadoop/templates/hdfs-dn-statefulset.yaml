@@ -1,0 +1,69 @@
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: {{ include "hadoop.fullname" . }}-hdfs-dn
+  annotations:
+    checksum/config: {{ include (print $.Template.BasePath "/hadoop-configmap.yaml") . | sha256sum }}
+  labels:
+    app: {{ include "hadoop.name" . }}
+    chart: {{ include "hadoop.chart" . }}
+    release: {{ .Release.Name }}
+    component: hdfs-dn
+spec:
+  serviceName: {{ include "hadoop.fullname" . }}-hdfs-dn
+  replicas: {{ .Values.hdfs.dataNode.replicas }}
+  podManagementPolicy: "Parallel"
+  template:
+    metadata:
+      labels:
+        app: {{ include "hadoop.name" . }}
+        release: {{ .Release.Name }}
+        component: hdfs-dn
+    spec:
+      terminationGracePeriodSeconds: 0
+      containers:
+      - name: hdfs-dn
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
+        command:
+          #- "bash"
+             #args: ["-c", "'rm -rf /root/hdfs/namenode/* && /bin/bash /tmp/hadoop-config/bootstap.sh -d'"]
+           #- "rm"
+           #- "-rf"
+           #- "/root/hdfs/namenode/*"
+           #- "&&"
+           - "/bin/bash"
+           - "/tmp/hadoop-config/bootstrap.sh"
+           - "-d"
+        resources:
+{{ toYaml .Values.hdfs.dataNode.resources | indent 10 }}
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 50075
+          initialDelaySeconds: 5
+          timeoutSeconds: 3
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 50075
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+        volumeMounts:
+        - name: hadoop-config
+          mountPath: /tmp/hadoop-config
+        - name: dfs
+          mountPath: /root/hdfs/datanode
+      volumes:
+      - name: hadoop-config
+        configMap:
+          name: {{ include "hadoop.fullname" . }}
+  volumeClaimTemplates:
+  - metadata:
+      name: dfs
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "local-storage-large"
+      resources:
+        requests:
+          storage: 50Gi

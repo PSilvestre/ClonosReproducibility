@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "fullname" . }}-taskmanager
+spec:
+  replicas: {{ .Values.flink.num_taskmanagers }}
+  podManagementPolicy: "Parallel"
+  serviceName: "flinkss"
+  selector:
+    matchLabels:
+      app: {{ template "fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "fullname" . }}
+        component: taskmanager
+    spec:
+      containers:
+      - name: taskmanager
+        image: {{ .Values.image }}:{{ .Values.imageTag }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        command: ["/bin/bash"]
+        args: ["-c", "rm -rf /opt/flink/rocks/chk* && rm -rf /opt/flink/rocks/tmp/* && /docker-entrypoint.sh taskmanager -Dtaskmanager.host=$(K8S_POD_IP)" ]
+        ports:
+        - name: data
+          containerPort: 6121
+        - name: rpc
+          containerPort: 6122
+        - name: query
+          containerPort: 6125
+        env:
+        - name: K8S_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: FLINK_CONF_DIR
+          value: /opt/flink/conf
+        - name: FLINK_ENV_JAVA_OPTS
+          value: -Dlog.file=/opt/flink/log/taskmanager.log
+        - name: LOG_FILE
+          value: /opt/flink/log/taskmanager.log
+        resources:
+          limits:
+            cpu: {{ .Values.resources.taskmanager.limits.cpu }}
+            memory: {{ .Values.resources.taskmanager.limits.memory }}
+          requests:
+            cpu: {{ .Values.resources.taskmanager.requests.cpu }}
+            memory: {{ .Values.resources.taskmanager.requests.memory }}
+        volumeMounts:
+        - name: {{ template "fullname" . }}-flink-config
+          mountPath: /opt/flink/conf
+        - name: {{ template "fullname" . }}-hadoop-config
+          mountPath: /etc/hadoop/conf
+        - name: {{ template "fullname" . }}-pvc
+          mountPath: /opt/flink/rocks
+      volumes:
+        - name: {{ template "fullname" . }}-flink-config
+          configMap:
+            name: {{ template "fullname" . }}-flink-config
+        - name: {{ template "fullname" . }}-hadoop-config
+          configMap:
+            name: {{ template "fullname" . }}-hadoop-config
+  volumeClaimTemplates:
+  - metadata:
+      name: {{ template "fullname" . }}-pvc
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "local-storage-small"
+      resources:
+        requests:
+          storage: 6Gi
