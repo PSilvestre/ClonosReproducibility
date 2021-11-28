@@ -139,7 +139,12 @@ date=$(date +%Y-%m-%d_%H:%M)
 path_prefix="./data/results-$date"
 
 . 2_run_experiments.sh $path_prefix
+echoinfo "Experiments completed."
 
-#TODO invoke script to generate images (use correct pdf string type)
+echoinfo "Generating experiment graphs in $path_prefix."
+mkdir -p $path_prefix/images
+python3 generate_figures.py "$path_prefix" "$path_prefix/images"
 
 #TODO compile paper with new images
+cp $path_prefix/images/*.pdf ./paper_source/Figures
+cd ./paper_source && make all

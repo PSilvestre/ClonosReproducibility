@@ -58,9 +58,8 @@ function get_vertex_host() {
 }
 
 function reset_flink_cluster() {
-  num_nodes_req=$1
   if [ "$REMOTE" = "0" ]; then
-    docker-compose down -v && docker-compose up -d --scale taskmanager=$num_nodes_req
+    docker-compose down -v && docker-compose up -d --scale taskmanager=$NUM_TASKMANAGERS_REQUIRED
   else
     kubectl delete pod $(kubectl get pods | grep flink | awk {'print $1'})
   fi

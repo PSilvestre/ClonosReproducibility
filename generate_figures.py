@@ -2,12 +2,11 @@ import math
 import sys
 from typing import List, Tuple
 
+import matplotlib
+import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
-import matplotlib
 from matplotlib import pyplot as plt
-import matplotlib.patches as mpatches
-from datetime import datetime, timedelta
 
 
 def failure_get_killtimes(path: str):
@@ -23,7 +22,7 @@ def failure_get_killtimes(path: str):
 def lowpass_smooth(data: pd.Series, alpha: float):
     data_filtered = []
     for i, val in enumerate(data):
-        if (i != 0 and i != len(data) - 1):
+        if i != 0 and i != len(data) - 1:
             data_filtered.append(alpha * data[i - 1] + (1 - 2 * alpha) * val + alpha * data[i + 1])
     return pd.Series(data_filtered)
 
@@ -56,14 +55,12 @@ def failure_latency_compare(save_name: str, latencies: List[pd.DataFrame], killt
             if not str(column).startswith("OUTPUT-"):
                 df[column] = df[column] / 1000
 
-        failure_free_latencies_per_partition = []
         for p in range(num_partitions):
             df[f"OUTPUT-{p}"] = df[f"OUTPUT-{p}"] / 1000 - init_ts / 1000
 
-        # Anotate graph with recovery time
+        #Anotate graph with recovery time
         last_fail = max(killtimes_adjusted)
-        recovered = compute_recovered_timestamp(df, failure_free_latencies_per_partition, last_fail, num_partitions,
-                                                time_range)
+        recovered = compute_recovered_timestamp(df, last_fail, num_partitions, time_range)
         axs[i].annotate("", xy=(last_fail, max_lat / 4 * 1), xycoords='data',
                         xytext=(recovered, max_lat / 4 * 1), textcoords='data',
                         arrowprops=dict(arrowstyle="|-|", color="green"))
@@ -89,7 +86,7 @@ def failure_latency_compare(save_name: str, latencies: List[pd.DataFrame], killt
     plt.xlabel("Experiment Time (s)")
 
     fig.tight_layout(pad=0.05)
-    plt.savefig(save_name + ".pdf",
+    plt.savefig(save_name,
                 bbox_inches="tight",
                 # pad_inches=0.05,
                 # transparent=True
@@ -97,7 +94,7 @@ def failure_latency_compare(save_name: str, latencies: List[pd.DataFrame], killt
     plt.close()
 
 
-def compute_recovered_timestamp(df, failure_free_latencies_per_partition, last_fail, num_partitions, time_range):
+def compute_recovered_timestamp(df, last_fail, num_partitions, time_range):
     merged = merge_latency_df(df, num_partitions)
     pre_failure_lats = merged.query("TIME < 40")["LAT"]
     avg_lat = pre_failure_lats.mean()
@@ -108,10 +105,8 @@ def compute_recovered_timestamp(df, failure_free_latencies_per_partition, last_f
     merged = merged.query(f"TIME > {time_range[0] - 5} & TIME < {time_range[1] + 5}")
     datetime_merged = merged.copy()
     datetime_merged["TIME"] = merged["TIME"].map(lambda x: pd.Timestamp(x, unit="s"))
+
     rolling_avg = datetime_merged.sort_values(by="TIME").rolling("10s", on="TIME").mean()
-    # rolling_avg.plot(x="TIME", y="LAT", kind="scatter")
-    # plt.axhline(limit_lat)
-    # plt.show()
 
     fail_ts = pd.Timestamp(last_fail + 2, unit='s')
     above_lat_limit_times = rolling_avg.query(f"TIME > @fail_ts & LAT > @limit_lat")["TIME"]

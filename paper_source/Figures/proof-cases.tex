@@ -1,0 +1,55 @@
+%!TEX root = ../hastreaming.tex
+
+
+\tikzstyle{leafstyle3}=[text width=40mm, fill=myorange!40]
+\tikzstyle{leafstyle}=[leafstyle3, fill=blue!15]
+
+\tikzstyle{eqstyle}=[leafstyle3,fill=green!18, text width=8cm]
+%
+%
+\node[fill=red!40] {\textbf{DSD $=$ D}}
+        child {node[eqstyle] (ncvv1) {$\forall e: \square ( \neg \Stable(e) \implies ((\Depend(e) \subseteq \Log(e) )))$ ~~(Eq. \ref{eq:causal})}
+	    % left child
+	        child {node[leafstyle3, xshift=-16mm] {$\Log(e) \subseteq \mathcal{F}$ \\ (no surviving process with \#$e$)}
+	        			child { node[leafstyle3] {$\Depend(e) \subseteq \Log(e)$ \\ (no surviving process depends on $e$)}
+	        				child { node[leafstyle] {Recover without determinant}
+	        				}
+	        			}		
+		        }
+	%
+	%
+	        % right child
+	        child {node[leafstyle3, xshift=16mm] {$\Log(e) \nsubseteq \mathcal{F}$ \\ ($\exists$ surviving process with \#$e$)}
+	        	    % child { node[leafstyle3] {$\Depend(e) \nsubseteq \mathcal{F}$ \\ (surviving processes depend on $e$)}
+		        		child { node[leafstyle] {Recover using determinant}
+		        		}
+	        		% }
+	        }
+};
+%
+%
+\node[fill=red!40, xshift=90mm] {\textbf{DSD $<$ D}}
+        child {node[eqstyle] (ncvv1) {$\forall e: \square ( (|\Log(e)| \leq \text{DSD})  \implies 
+   ((\Depend(e) \subseteq \Log(e) )))$ ~~(Eq. \ref{eq:causalbounded})}
+	        % left child
+	        child {node[leafstyle3, xshift=-15mm] {$\Log(e) \nsubseteq \mathcal{F}$ \\ ($\exists$ surviving process with \#$e$)}
+	        	    % child { node[leafstyle3] {$\Depend(e) \nsubseteq \mathcal{F}$ \\ (surviving processes depend on $e$)}
+		        		child { node[leafstyle, text width=18mm, xshift=-10mm] {Recover using determinant}
+		        		}
+	        		% }
+	        }
+	    % right child
+        child {node[leafstyle3, xshift=17mm, text width=35mm] {$\Log(e) \subseteq \mathcal{F}$ \\ (no surviving process with \#$e$)}
+        	child { node[leafstyle3, text width=25mm, xshift=-22mm] {$\Depend(e) \nsubseteq \mathcal{F}$ \\(orphaned process)}
+	        	% child { node[leafstyle3] {}
+	        		child { node[leafstyle,text width=25mm,xshift=0mm] {Trigger global rollback}
+	        		}
+	        	% }
+	        }
+        	child { node[leafstyle3, xshift=0mm, text width=30mm] {$\Depend(e) \subseteq \mathcal{F}$ \\ (no orphaned process)}
+	        		child { node[leafstyle, text width=34mm] {Recover without determinant}
+	        		}
+	        }	
+        }
+};
+        % \draw[edgestyle]  (ncvv1) edge (hor1);

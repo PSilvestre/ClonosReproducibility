@@ -101,7 +101,6 @@ function start_nexmark_failure_experiment() {
 
   args=$(build_args $jobstr "failure")
 
-  clear_make_topics $p
   args_producer=$(build_args $jobstr "producer")
 
   echo "Running publisher"
