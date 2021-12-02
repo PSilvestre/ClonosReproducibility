@@ -22,7 +22,7 @@ data:
     taskmanager.numberOfTaskSlots: {{ .Values.flink.num_slots_per_taskmanager }}
     state.checkpoints.num-retained: 1
 
-    jobmanager.execution.num-standby-tasks: 0
+    jobmanager.execution.num-standby-tasks: 1
     jobmanager.execution.checkpoint-coordinator-backoff-mult: 3
     jobmanager.execution.checkpoint-coordinator-backoff-base: 15000
 

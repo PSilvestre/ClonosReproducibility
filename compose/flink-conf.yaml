@@ -39,22 +39,22 @@ jobmanager.execution.failover-strategy: standbytask
 jobmanager.execution.num-standby-tasks: 1
 
 taskmanager.inflight.type: spillable
-taskmanager.inflight.spill.policy: eager
+taskmanager.inflight.spill.policy: availability
 taskmanager.inflight.spill.availability-trigger: 0.50
 taskmanager.inflight.spill.num-prefetch-buffers: 10
 taskmanager.inflight.spill.sleep: 100
 
 taskmanager.memory.fraction: 0.7
+taskmanager.network.memory.fraction: 0.3
 
-taskmanager.network.memory.fraction: 0.2
 taskmanager.network.memory.buffers-per-channel: 2
 taskmanager.network.memory.floating-buffers-per-gate: 8
-taskmanager.network.memory.sender-extra-buffers-per-channel: 0
-taskmanager.network.memory.sender-extra-floating-buffers-per-gate: 20
+taskmanager.network.memory.sender-extra-buffers-per-channel: 10
+taskmanager.network.memory.sender-extra-floating-buffers-per-gate: 500
 
-taskmanager.network.netty.determinantMemorySteal: 0.2
-taskmanager.network.netty.determinantBufferSize: 32768
-taskmanager.network.netty.determinantBuffersPerJob: 100
+taskmanager.network.netty.determinantMemorySteal: 0.3
+taskmanager.network.netty.determinantBufferSize: 16384
+taskmanager.network.netty.determinantBuffersPerJob: 2000
 taskmanager.network.netty.enableDeltaSharingOptimizations: true
 taskmanager.network.netty.determinantDeltaEncodingStrategy: hierarchical
 
@@ -64,9 +64,14 @@ metrics.latency.granularity: single
 metrics.latency.history-size: 10
 web.refresh-interval: 2000
 
-heartbeat.interval: 10000
-heartbeat.timeout: 50000
+heartbeat.interval: 4000
+heartbeat.timeout: 6000
 
+taskmanager.network.request-backoff.initial: 500
+taskmanager.network.request-backoff.max: 100000
+
+akka.watch.heartbeat.pause: 500 s
+akka.ask.timeout: 120 s
 #state.backed.rocksdb.localdir: /opt/flink/rocks
 
 

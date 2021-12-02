@@ -46,8 +46,8 @@ services:
     links:
       - namenode:hdfs-namenode
     volumes:
-      - ./compose/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
-      - ./compose/log4j-console.properties:/opt/flink/conf/log4j-console.properties
+      - ./flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
+      - ./log4j-console.properties:/opt/flink/conf/log4j-console.properties
     environment:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
   taskmanager:
@@ -63,8 +63,8 @@ services:
       - jobmanager
     command: taskmanager
     volumes:
-      - ./compose/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
-      - ./compose/log4j-console.properties:/opt/flink/conf/log4j-console.properties
+      - ./flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
+      - ./log4j-console.properties:/opt/flink/conf/log4j-console.properties
     links:
       - jobmanager:jobmanager
       - namenode:hdfs-namenode
