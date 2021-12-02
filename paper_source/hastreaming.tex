@@ -372,6 +372,7 @@ presents related work. We conclude in Section~\ref{sec:conclusions}.
 \vspace{-2mm}
 \caption{Steps of the fault recovery protocol.}
 \label{fig:recovery-protocol}
+% \vspace{-3mm}
 \end{figure*}
 
 
@@ -382,7 +383,11 @@ Recovering locally with exactly-once processing guarantees is challenging: in or
 Another difficult problem is record deduplication: because some of the records have already been produced by a failed task, the recovery protocol needs to ensure that those messages are only processed once.
 The problem becomes even harder for nondeterministic computations that may produce different output (and operator state) for the same input across executions. Achieving all this in a highly-available manner where recovery has to be blazingly fast and the impact to the system's performance minor, is very challenging.
 Besides local recovery, Clonos features a high availability mode where it uses standby tasks with preloaded state to speed up recovery and further lower the impact of a failure.
+% Input and output channels as well as record (de)serializers are prime examples of components that encapsulate sensitive state.
+% On top of local recovery, Clonos provides a high availability mode based on  passive replication that proactively prepares for failures and acts rapidly when they happen.
 Below we give an overview of our recovery protocol.
+ % The only difference compared to a local recovery wihtout standby operators, is that the scheduling of a new operator and the population of state in the new operator happen on demand, upon failure.
+% \vspace{-4mm}
 
 \subsection{Normal Operation}
 \label{sub:protocol-actions-op}
@@ -400,6 +405,7 @@ Figure \ref{fig:operation} captures a snapshot of the execution when the job is 
 When a record reaches Task \#2, it is processed and the output record (assuming for simplicity a function that produces a new record for each input record) is put in the output queue. Once the output record is transmitted over the network, it is added in the in-flight log.
 The in-flight log is segmented into epochs, such that whenever a checkpoint completes, all records in epochs prior to the checkpoint can be removed. % Should not talk about recycling (implementation detail)
 
+% The fact that the implementation of logging is causal also feels like an implementation detail. 
 \para{Log of Nondeterministic Events}
 Tasks maintain a log~\cite{elnozahy1992manetho} of determinants for recording information about nondeterministic events and operations.
 In addition, each task shares its log incrementally with downstream tasks as we describe in Section~\ref{sub:causal}.
@@ -426,6 +432,8 @@ The standby task dynamically connects with the upstream and downstream task(s) o
 
 \para{3. Retrieve Determinant Log}
 The recovering task retrieves its predecessor's determinant log from its downstream task(s).
+%The most up-to-date log among them is used for recovery.
+%An operator's determinants can survive concurrent failures of multiple operators by choosing an appropriate sharing depth for determinants.
 
 \para{4. Request In-Flight Records}
 In parallel to step 3, the standby task sends an in-flight log request to its upstream task(s) which specifies the epochs to replay. 
@@ -440,6 +448,10 @@ The recovering task (task \#2) begins processing these records. Whenever it reac
 In parallel to step 5, the recovering task uses its determinant log to ignore output that its predecessor produced before failing.
 These output records are instead used to rebuild the in-flight log state.
 
+%\para{7. Resume Normal Execution}
+%When the determinant log is exhausted consistent state has been achieved, and the operator resumes normal execution.
+
+% \vspace{2mm}
 \noindent Clonos' recovery protocol differs in a number of ways
 from upstream backup~\cite{Hwang2005HAA} where upstream tasks replay the output records to recovering downstream tasks.
 Specifically, our protocol:
@@ -461,7 +473,9 @@ Clonos' approach can also be easily adapted to systems using uncoordinated check
 % We chose Flink because it is a scalable open-source distributed streaming system with a continuous processing model and consistent fault tolerance with respect to the system's state.
 Clonos' implementation requires extending multiple system components such as the job manager, scheduler, checkpoint \& fault tolerance mechanisms, the network stack, and the base stream operators.
 % Of all extensions to Flink, we highlight the implementation of Clonos' failure detection, causal logging, and in-flight logging mechanisms.
+% \pedro{Current branch is causal-exactly-once, but we should probably just rename the repo to clonos and put it on master.}
 Clonos' implementation is available online.\footnote{\url{https://github.com/delftdata/Clonos}}
+% \marios{anonymize} as open-source software.
 
 
 \section{Preliminaries}
@@ -469,11 +483,22 @@ Clonos' implementation is available online.\footnote{\url{https://github.com/del
 
 This section provides the necessary background on the concepts used throughput the paper. We focus on current recovery mechanisms for stream processing and how these relate to rollback recovery schemes and causal logging.
 
+% Define platform assumptions and failure model as in~\cite{ShahHB04,HwangBR05}.
+%Our work regards fault tolerance in stream processing systems.
+%For brevity, in the rest of the paper we refer to stream processing systems with the more relaxed term streaming systems.
+%We implement Clonos on Apache Flink~\cite{CarboneKE15}, but it can also be applied to any scale-out streaming system whose nodes communicate over an orderly and reliable message transport layer like \textsc{tcp}.
+
+% Double-check
+
 
 \subsection{Streaming Model}
 Stream processing systems~\cite{akidau2013millwheel, CarboneKE15, SilvaZD16, NoghabiPP17} process unbounded collections of \textit{records} continuously by ingesting them into a dataflow graph where \textit{edges} denote record streams and \textit{vertices} denote operators.
 Each \textit{operator}, receives records from an upstream operator, applies a computation on those records, and produces  output records that it sends to the next operator(s) \textit{downstream}. Each operator that produces output retains \textit{output buffers} for sending output records downstream efficiently in batches.
 
+%\asterios{Move} When applicable, fusion of multiple operators may be applied, i.e., pipelining of multiple operators on the same task, that execute as a single operator Such an operator chain is equivalent to a single more complex operator. 
+% These operator chains are executed in tasks. Tasks will serialize output records into output buffers before sending them downstream for performance.
+
+% Apache Flink is one of the systems that fit the above description. We briefly present its fault tolerance protocol and execution model as a background for understanding our work on Clonos.
 
 \subsection{Checkpoint-based Rollback Recovery}
 
@@ -596,6 +621,19 @@ Since low-watermarks are generated according to wall clock time, using timers, t
 \para{Keyed Streams \& Record Arrival Order} To parallelize and group streams, it is common to partition them using a partitioning key. We refer to such a stream as a keyed stream. 
 Downstream operators (e.g. a \texttt{reduce} operator) receive inputs from multiple upstream operators, on a per-key basis. The issue here is that, depending on the network speed, the connection between various operators, etc., the order in which records arrive is not always the same upon recovery. A lot of times, operators are order-sensitive; in that case, the operator will also generate records in a different order than the one before the failure happened. In other words, operators that process multiple inputs are not deterministic. To make it deterministic, we need to fix the order in which records are replayed on recovery (see Section~\ref{sec:determinants}).
 
+% \setlength{\columnsep}{1pt}
+
+% \begin{wrapfigure}[7]{R}{0pt}
+%   \centering
+%   \includegraphics[width=0.2\textwidth]{Figures/keyby.pdf}
+%  % \caption{A keyed stream}
+%   \label{fig:keyby}
+% \end{wrapfigure}
+
+% % Restore defaults
+% \setlength{\columnsep}{10pt}
+
+
 
 \para{Checkpoints \& Received RPCs} Checkpoint-based fault tolerance protocols inject checkpoint barriers into the dataflow graph that instruct operators to checkpoint their state as they pass through them.
 Those barriers are injected in the dataflow graph through an RPC according to the system time of the job manager (e.g., every 10 seconds). Any RPC received by a task which affects its state is nondeterministic.
@@ -604,6 +642,7 @@ Those barriers are injected in the dataflow graph through an RPC according to th
 
 
 
+% NOTE!!!! It is these buffer size determinants, that during recovery implicitly tell us whether or not a certain buffer was received downstream, and whether we should deduplicate it. If the determinant was given to us during recovery, then the corresponding buffer reached downstream, and we must deduplicate it.
 
 
 \subsection{Abstracting Nondeterminism with Services}
@@ -743,6 +782,9 @@ Thus, each queue has a causal log, where the size of buffers sent is recorded (\
 
 
 \para{Replicating Determinants to Downstream Tasks} The downstream task, upon receiving the buffer and the delta of the two logs, appends those updates to the corresponding task causal log. In this way, before data is allowed to affect the state, the causal information necessary to recover it is already stored. In order to be able to afford two successive tasks failing, one might also want to replicate the determinants of each task to a deeper sharing depth. 
+% This is not true, we would recover with at-most-once, that is explained later below.
+%Interestingly, if the sharing depth is set to 0 and we do not keep in-flight logs, and we do not maintain standby operators, Clonos' recovery protocol is essentially equivalent to the one of Apache Flink~\cite{CarboneEF17}.
+
 
 \para{Truncating Causal Logs} The causal log is organized in segments according to epochs and is truncated whenever a checkpoint completes; the causal log is only needed in the middle of an epoch, when a local recovery has to complete using in-flight logs and the older checkpoint as we describe in the next section.
 
@@ -750,6 +792,34 @@ Thus, each queue has a causal log, where the size of buffers sent is recorded (\
 \label{sec:correctness}
 
 In this section we show how Clonos deals with recovery and how it guarantees \textit{exactly-once processing} with local recovery, using a causal log and in-flight records. In \autoref{sec:exactly-once-output} we describe how we could extend Clonos to guarantee \textit{exactly-once output}.
+
+
+
+
+
+
+%We described how we use the replayed in-flight records together with the causal log to recover the exact previous operator state in Section~\ref{sub:correctness}.
+
+% Clonos' replay process is reliable, cheap in terms of processing and storage overhead, and performant on recovery.
+% It is reliable because at worst case the desired input can be found at the input sources.
+% It is cheap to maintain and performant on recovery because the in-flight record log either resides in memory, which is fast to access, or it is prefetched from disk in order to avoid waiting time.
+
+%Although Clonos maintains output correctness it provides at least-once processing semantics, since operators downstream from the failure will likely process some records twice, once during normal operation prior to the failure and once during replay.
+%This side effect is related to the output commit problem~\cite{ElnozahyAW02} that we survey in Section~\ref{subsub:output-commit}.
+%Furthermore, in Section~\ref{sec:future} we outline how we plan to address this problem.
+
+
+%\asterios{we need to sell the lineage-based recovery as fuck.}
+
+
+% Remove output buffers to ensure correct output ordering and ease the load on the upstream
+% Allow recovery to happen since it's involved in the output record production. No buffers no recovery
+% Exclusive buffer pool for in-flight logger and network buffer pool (very different lifecycle)
+% Exclusive pool allocation pattern
+% Failure detection with Netty
+% Fine-grained buffer management because of interrupting the usual schedule of buffers: records in-between buffers can cause inconsistencies and crashes
+
+
 
 
 \subsection{Lineage-based Replay}
@@ -764,14 +834,26 @@ This lineage-based process can reach recursively the operator graph all the way 
 
 
 
+
+
+
+
+
 \subsection{Determinant-based Deduplication}
 When recovering a task, the task replays the received in-flight records and produces output. Achieving exactly-once processing when performing local recovery requires deduplication after replay. In prior work~\cite{FernandezMK13}, such deduplication is rather simple: each operator is considered to be deterministic, and all produced records bear a logical timestamp. The downstream operator can simply discard the records bearing the already seen logical timestamps. However, receiver-based deduplication wastes bandwidth. 
 
 Instead, deduplication in Clonos is done in two concurrent steps. First, as the main processing thread recovers, it uses its causal log to produce the exact same output records. Concurrently, the network channel threads use their causal logs, which contain only information about the size of buffers received downstream, to reconstruct the same buffers as sent before. %The work to perform serialization is not wasted, as these buffers are instead used to rebuild the in-flight log, in case any failures happen downstream.
+%For Clonos to employ a similar deduplication strategy for non-deterministic operators, it needs to replay the same stream after it recovers, and produce --- per channel --- the exact same tuples and in the same order. Thus the tuples that have been transmitted before and have reached the downstream operator can be deduplicated with a simple counter. Clonos goes a step further. Instead of marking each record with a unique timestamp, it records a determinant whenever a buffer is sent through the network. Whenever a downstream operator receives a buffer, it also receives the respective determinants (Step 3, \autoref{sub:protocol-actions-recovery}) for that buffer. During replay, the recovering operator can use those determinants to know whether a given buffer has already been sent to a downstream operator. If that is the case, it is discarded from the sender.
+% More specifically, during replay, a recovering task for each channel will discard as many buffers as there are determinants that it received for that channel. This means that when all buffer determinants are consumed from replay, the next buffer created in that channel is safe to be sent downstream: if the receiver had received its buffer it would also necessarily hold (and thus have returned upstream) a determinant for that buffer.
+
 
 \subsection{Correctness of Recovery Scheme}
 \label{sec:determinant-recovery}
 
+
+% \subsection{Exactly-once with Global Rollback} The protocol~\cite{CarboneEF17} upon which we built Clonos guarantees exactly-once processing. Upon failure, the \emph{complete} topology has to be taken down and restarted from scratch. Moreover, the protocol depends on an external system that stores the  output stream with a ``read-committed'' isolation guarantee. The main idea is that, unless an epoch has completed and a global checkpoint is safe and persisted, the external world cannot read the outputs of the dataflow sinks. 
+
+% For instance, Apache Flink users typically use it alongside Apache Kafka's transactions: Flink sinks push events to a Kafka topic, but those events are not available to be consumed by external Kafka clients until Flink's sinks request a \textit{commit} of those events. More specifically, all the output events of a given epoch are not committed until the checkpoint barriers have gone through the complete graph and they have passed all sinks. It is then that the checkpoint is persisted to a safe storage (e.g., Amazon S3, or HDFS) and all sinks perform a commit of their Kafka partitions. In fact, Kafka is just an example -- the same "read-committed" isolation guarantee can also be achieved with any form of idempotent or transactional sinks~\cite{CarboneEF17}.
 
 In the following, we analyze the conditions under which recovery can be performed using determinants depending on the depth to which determinants are shared. The correctness of causal logging as a rollback recovery approach has been formally proven in the past \cite{alvisi1996understanding, alvisi1998message}. Since Clonos tracks nondeterminism for multiple threads (the main processing thread and one thread per output channel), we model each thread as a process and recover them in unison. Thus, the proofs applicable to pure causal logging trivially extend to Clonos. However, ensuring exactly-once processing when locally recovering a failed operator remains open;
 we show Clonos guarantees it in the following paragraphs.
@@ -788,6 +870,7 @@ Note that in this configuration Clonos follows the condition stated in Equation 
 
 
 \noindent Two failure cases can occur:
+% \vspace{-3mm}
 \begin{itemize}
 \item $\Log(e) \subseteq \mathcal{F}$: Since the condition $\Depend(e) \subseteq \Log(e)$ also holds, then no surviving process depends on $e$, meaning that a different execution path may be taken without breaking consistency or the always no-orphans condition. 
 \item $\Log(e) \nsubseteq \mathcal{F}$: At least one surviving process has the determinant of event $e$, in which case it guides the recovery, either by ensuring the main thread follows the correct execution path or by ensuring an output thread deduplicates a buffer and thus the records it contains. 
@@ -826,12 +909,71 @@ In this way, Clonos can achieve very low-latency exactly-once output since the o
 
 
 
+% The pushing of buffers create more challenges.
+% As mentioned before in Section~\ref{sec:in-flight-design}, the size of buffers which are sent downstream is nondeterministic, because a downstream operator may at any moment request a buffer to be sent.
+% We must, therefore, record the nondeterministic size of sent buffers in the causal log of this operator. This will help us, late on, to know when to send a buffer, even it is not full yet. 
 
+% However, since it is a network thread that slices the buffer, the main thread causal log of this operator cannot be used.
+% Thus, an operator causal log is composed of one main thread causal log and one output channel causal log for each output channel.
+
+
+
+
+% \para{Implementation} We thus have four kinds of causal logs that capture the full multithreaded operation of an operator.
+% Each log has different properties for optimal performance.
+% The first two kinds of logs are local to the executing operator.
+% The main thread log, is a SPMC (Single Producer Multiple Consumer) log, as only the main thread adds determinants to it, but all output channels share deltas of this log.
+% The output channel logs are SPSC, as only a single network thread both produces and consumes from it.
+% The last two kinds of logs are used to capture nondeterminism in the upstream operators' main and output threads.
+% They are both MPMC, as updates relevant to a given operator may be received from any upstream output channel, and may be shared with any downstream input channel.
+
+% All four kinds of thread causal logs are backed by network buffers, to allow for fast slicing and avoid data copies.
+% The local logs, encode determinants into these network buffers directly, while the upstream logs, receive and append slices.
+
+% Each operator is aware of the distance separating it from an upstream operator.
+% The determinant sharing depth is configurable, and tells each node if it should share a given upstream operator's determinants with its downstream.
+% For example, a determinant sharing depth of 0, means no determinant sharing, leading to \textit{at-least-once} processing semantics.
+% A determinant sharing depth of 1, tells each node that it should share its determinants only with their immediate downstreams.
+% Finally, full sharing is also possible, meaning that a sink will store determinants of all upstream operators, from sources to the sink itself.
+
+
+
+
+% Causal logging with multiple threads
+% Represent shared state as a process  in themselves (Optimisitc multithreaded recovery)
+% Result subpartition is a process that receives messages from the main thread 
+
+% in-flight logs correct
+% length of determinant log
+% replay in the same order
+
+% otherwise everything deterministic
+% output side of recovering operator recover state by using buffer-built  determinants
+
+% simultaneously
+% recover main thread (state) and it has to put  32K bytes in the output thread
+% one output thread  (build buffer with 32K bytes)
+
+
+% ensure byusing full determinant sharing
+% some operator hsa the determinant
+% or all operators die and abort 
+% transactions
+
+% if assert fails global failure
 
 \section{System Design Decisions}
 \label{sec:design}
 
-In this section we detail the interesting and non-trivial design decisions of the various building blocks comprising Clonos.
+% performance implications at  the end of each subsection
+In this section we detail the interesting and non-trivial design decisions of the various building blocks comprising Clonos. 
+% Clonos is a highly available streaming system with strict consistency guarantees.
+% Clonos consists of seven building blocks: 1) standby operators, 2) logging of in-flight records in each running operator that sends its output to downstream operators, 3) causal logging of nondeterministic events, 4) dispatching of each running operators' checkpointed state to the corresponding standby operator, 5) failure detection based on the persistent network connection between each pair of connected operators, 6) dynamic reconfiguration of network channels following a failure, and 7) a lineage-based replay protocol.
+%\pedro{I wouldn't call it a lineage-based replay protocol. I'd rather call it recovery of consistent state through the deterministic replay of those nondeterministic events}
+
+
+
+% With the design and implementation of components, in this section we also discuss interesting design tradeoffs, tough challenges, and lessons learned.
 
 \subsection{In-flight Record Log}
 \label{sec:in-flight-design}
@@ -839,6 +981,7 @@ In this section we detail the interesting and non-trivial design decisions of th
 Clonos stores in-flight records in each task that sends its output to other tasks downstream.
 Because an upstream task may send records to multiple tasks downstream, the records are logged by output channel (partition), which corresponds to a specific connection with a downstream task. 
 To optimize throughput, Flink sends records downstream, serialized in network buffers. Clonos logs these buffers in the in-flight log before they are sent.
+% The records contained in each buffer are processed in the order they are placed in the buffer.
 
 \para{Avoiding Buffer Copies} Normally, when a buffer is sent over the network, it needs to return to the buffer pool of the output channels and be recycled. However, the in-flight log also needs to store that buffer. One choice would be to copy it over, and then recycle the buffer. However, to avoid copying buffers, whenever a buffer is dispatched from the network layer downstream, the output channel simply hands over that buffer to the in-flight record log.
 This, however, can cause deadlocks: the output channels could be waiting for buffers to become available in order to serialize output records, but no buffer would be available if they would all be used by the in-flight log.
@@ -853,7 +996,10 @@ We solved it by placing the buffers at the back of the in-flight log even though
 %Essentially, to overcome this issue we spill buffers to disk (Figure \ref{fig:operation}) and read them back until Clonos catches up with the input or the next checkpoint happens.
 
 \para{Spilling to Disk} Our in-flight log is segmented into epochs, and whenever a checkpoint completes successfully, the in-flight log is truncated up to that checkpoint, making the data buffers available in its local buffer pool. 
-The in-flight record logs are kept in memory by default.
+% Finally, the dispatch of buffers happens upon request by downstream operators.
+% To minimize latency, upstream operators may respond with a buffer slice if the buffer is half-full at the time.
+The in-flight record logs are kept in memory by default. 
+% Furthermore, this approach minimizes processing overhead during normal operation and recovery time.
 Depending on the checkpoint frequency  and input throughput pace, the in-flight log may grow beyond the size of the log's buffer pool leading to blocked processing and backpressure.
 To counteract this issue, we introduced an asynchronously spilling in-flight log, that persists buffers to disk (Figure \ref{fig:operation}), recycling them whenever necessary.
 The spilling in-flight log transitions seemlessly from on-disk buffers to in-memory buffers and prefetches on-disk buffers to speed up the replay process. It functions according to the following four (configurable) policies.
@@ -870,6 +1016,7 @@ Instead, the spill-buffer approach entails additional synchronous work that crea
 The spill-threshold approach offers a well-rounded solution to the above issues.
 
 
+%\asterios{growing size can lead to: 1) backpressure or 2) out of memory errors. We need a discussion on those tradeoffs. BTW does it make sense sometimes to simply throw away the in-flight in case we are going to run out of memory or to backpressure? We can still find those from the lineage... Nice discussion for systems people to love. We can claim that we have nottried it but our lineage is an enabler for such decisions.}
 
 \subsection{Network Channel Reconfiguration}
 
@@ -878,6 +1025,8 @@ Once the new task receives the acknowledgment from an upstream task, it requests
 After a new connection has been setup, the lineage-based replay protocol can begin.
 
 We found it particularly challenging to re-engineer the network stack in order to establish connections of tasks while jobs were executing. The main issue was to align network buffers and counters that match buffer sequence ids. In addition, record deserializers per input channel often keep state from one buffer to the next as they wait to receive the remaining part of a record with the next buffer.
+% A failure of an upstream operator is very likely to cause a crash since the next buffer that the alive operator will receive is a buffer filled with in-flight records.
+% The deserializer will unpack a new record instead of the remaining part of the record it expected.
 
 
 
@@ -897,10 +1046,12 @@ Depending on a job's processing, co-locating two specific tasks may be critical 
 If performance optimization is more important than failure safety, a job may choose to co-locate the corresponding standby tasks.
 By default, Clonos allocates standby tasks using the same allocation strategy provided by a job for the running tasks.
 
+% Affinity/anti-affinity: resource utilization cost  vs replication safety
+% especially for stateless operators
 
 \begin{figure*}[t]
     \centering
-    \includegraphics[width=.98\textwidth]{Figures/overhead.pdf}
+    \includegraphics[width=.98\textwidth]{Figures/flink-vs-clonos-nexmark.pdf}
     % \vspace{-2mm}
 		\caption{Relative throughput of Clonos (with DSD=1, DSD=Full) compared to "vanilla" Flink's recovery mechanism, under normal operation. The experiment performed on Nexmark queries.}
 \label{fig:overhead-nexmark}
@@ -921,6 +1072,7 @@ Under these assumptions, a checkpoint is guaranteed to complete before the next 
 Finally, if a standby task is called to run while a state snapshot is in transit Clonos will wait for the transfer to complete before starting the execution of the standby task.
 % This prioritization of actions guarantees a consistent recovery.
 
+% Clonos' state dispatch approach is quite simple, yet effective. Clonos can adopt sophisticated state migration approaches of pluggable software libraries such as Megaphone~\cite{hoffmann2019megaphone} or Rhino~\cite{delmonte2020rhino}.
 
 
 \section{Experimental Evaluation}
@@ -937,6 +1089,12 @@ In this section, we first present our experimental methodology for running two c
 \label{sub:experimental-method}
 
 We evaluate Clonos on a Kubernetes cluster hosted on a Cloud environment. The Kubernetes cluster hosts a 3-node Kafka cluster, which serves both as the data source and data sink of the failure experiments. An HDFS deployment, with a single NameNode and three datanodes, stores the operators' checkpoints. Finally, the  Kubernetes cluster hosts a Flink cluster with 150 TaskManagers, each containing a single task slot. Each TaskManager has access to 2GB of memory, and two processing cores. 
+
+% For every configuration tested, the Kafka topics are recreated with as many partitions as the target job's degree of parallelism. Often, in such settings, Kafka is a bottleneck to the throughput of the stream processor.
+% Indeed, we measured the Kafka bottleneck in our setting to be at roughly 4 million records per second.
+% To ensure this does not happen, we adjust the processing difficulty parameter such that the maximum load accepted by the stream processor is 0.1 million records per second per parallel operator.
+% We then request the generators to generate at 50\% load for the specific configuration. 
+% As an example, if parallelism is set to 5 and the stream type used is keyed, we use a difficulty of 620, which caps the maximum accepted throughput of the job at 0.5 million records per second. We then generate a load of 0.25 million records per second. 
 A given configuration's throughput is measured by sampling the Kafka cluster three times per second for the number of records in the output topic. Dividing the number of new records by the elapsed time, we obtain real-time throughput.
 A given configuration's latency is measured by sampling the output Kafka topics from each job and computing the output records' latency.
 Finally, we configure Flink to offer the fastest possible recovery, so as to provide a fair comparison. This means lowering the failure detection parameters to values not recommended for use in production. In particular, heartbeats are sent every 4 (default: 10) seconds, timing out after 6 (default: 60) seconds.
@@ -996,37 +1154,37 @@ In the interest of space, we do not plot latency measurements as we observed tho
 \begin{figure*}[!t]
 	\begin{subfigure}[t]{0.25\textwidth}
 		\centering
-		\includegraphics[width=\textwidth]{Figures/q3_failure_latency.pdf}
+		\includegraphics[width=\textwidth]{Figures/nexmark-q3-l-annotated.pdf}
 		\caption{Q3: latency}
 		\label{fig:nexmark-q3-l}
 	\end{subfigure}%
 	~
 	\begin{subfigure}[t]{0.25\textwidth}
 		\centering
-		\includegraphics[width=\textwidth]{Figures/q8_failure_latency.pdf}
+		\includegraphics[width=\textwidth]{Figures/nexmark-q8-l-annotated.pdf}
 		\caption{Q8: latency}
 		\label{fig:nexmark-q8-l}
 	\end{subfigure}%
 	~
 	\begin{subfigure}[t]{.25\textwidth}
 		\centering
-		\includegraphics[width=\textwidth]{Figures/multiple_failure_latency.pdf}
+		\includegraphics[width=\textwidth]{Figures/Experiments/failure/latency/random-failures-annotated.pdf}
 		\caption{Multiple: latency}
 		\label{fig:multiple-l}
 	\end{subfigure}%
 	~
 	\begin{subfigure}[t]{.25\textwidth}
 		\centering
-		\includegraphics[width=\textwidth]{Figures/concurrent_failure_latency.pdf}
+		\includegraphics[width=\textwidth]{Figures/Experiments/failure/latency/multi-failures-annotated.pdf}
 		\caption{Concurrent: latency}
 		\label{fig:concurrent-l}
 	\end{subfigure}%	
 
 	% \vspace{3mm}
-
+	
 	\begin{subfigure}[t]{0.25\textwidth}
 		\centering
-		\includegraphics[width=\textwidth]{Figures/q3_failure_throughput.pdf}
+		\includegraphics[width=\textwidth]{Figures/nexmark-q3-t.pdf}
 % 		\vspace{-1mm}
 		\caption{Q3: throughput}
 		\label{fig:nexmark-q3-t}
@@ -1034,21 +1192,21 @@ In the interest of space, we do not plot latency measurements as we observed tho
 	~
 	\begin{subfigure}[t]{0.25\textwidth}
 		\centering
-		\includegraphics[width=\textwidth]{Figures/q8_failure_throughput.pdf}
+		\includegraphics[width=\textwidth]{Figures/nexmark-q8-t.pdf}
 		\caption{Q8: throughput}
 		\label{fig:nexmark-q8-t}
 	\end{subfigure}%
 	~
 	\begin{subfigure}[t]{.25\textwidth}
 		\centering
-		\includegraphics[width=\textwidth]{Figures/multiple_failure_throughput.pdf}
+		\includegraphics[width=\textwidth]{Figures/Experiments/failure/throughput/random-failures.pdf}
 		\caption{Multiple: throughput}
 		\label{fig:multiple-t}
 	\end{subfigure}%
 	~
 	\begin{subfigure}[t]{.25\textwidth}
 		\centering
-		\includegraphics[width=\textwidth]{Figures/concurrent_failure_throughput.pdf}
+		\includegraphics[width=\textwidth]{Figures/Experiments/failure/throughput/multi-failures.pdf}
 		\caption{Concurrent: throughput}
 		\label{fig:concurrent-t}
 	\end{subfigure}%
@@ -1074,17 +1232,26 @@ For failure experiments we chose to present detailed throughput and latency metr
 We focus on Q3 and Q8. 
 Q3 performs a full history join and filtering operations,  while Q8 performs a windowed join, which explains the throughput spikes as we measure throughput at the job output sinks.
 We have also experimented with Q4, Q5, and Q7 since they are the most complex queries, but those produce very few output records and they were inappropriate to plot and exemplify proper recovery times. In order to observe end-to-end latency, a regular amount of output records must be generated.
+%We need a constant amount of output records during recovery in order to track latency measurements in our experiments.
 
 Figure~\ref{fig:nexmark-q3-l} shows that Clonos recovers within 10s by leveraging standby operators and local recovery.
 After a sub-second switch to the standby operator, replaying the lost epoch took roughly 10s at which point a small number of queued records were emitted with 10s latency, before the system could catch up.
 During this time, the alive tasks continue operating under regular latency.
+%The impact on latency is barely noticeable to external users/systems.
 Flink, however, loses availability on all tasks and takes at least 87s to recover and catch up. In addition, different output partitions recover at different speeds. This is indicated by the different lines of points visible in the plot.
 In Figure~\ref{fig:nexmark-q8-l} we inject a failure to the join operator. Clonos recovers within 3s. Note that since we measure latency on the output records (end-to-end latency) the visible points arranged vertically signify records of different arrival times in their respective windows. The window range also explains the empty spots in the figure as the window fires every 10s.
 Flink, on the other hand, takes more than 72s to fully recover.
 
+%TODO Flink forced to recompute window state on all partitions
 
 In terms of \textit{throughput}, Figure~\ref{fig:nexmark-q3-t} depicts Clonos' ability to instantly recover the job's original throughput, while Flink experiences a downtime of multiple seconds and a turbulent recovery.
 Notice how Clonos' throughput is barely affected following the failure. We can observe similar behavior in Figure~\ref{fig:nexmark-q8-t}.
+% query 3: highlighting Clonos's ability to , local item suggestion, finds users that are selling auctioning items in certain states and extracts information about them.
+
+%\para{Synthetic Workload}
+%We execute a job of depth 5, i.e. a source, three mappers, and a sink with shuffle connections between all operators at parallelism 10 per operator (total of 50 CPU cores). We execute the job on Clonos with and without standbys, as well as on Flink. We limit the throughput artificially, so that communication with Kafka is not a bottleneck.
+%As expected, Clonos recovers instantly in high availability mode with standbys, while it incurs minimal delay of a single partition when only enforcing local recovery.
+%Flink displays the same profile as in previous experiments with long downtime and bursty recovery.
 
 
 \begin{comment}
@@ -1108,6 +1275,10 @@ We perform our multiple and concurrent failure experiments at parallelism 5, ope
 The failures are sequenced, meaning the failed operators have connected dataflows. 
 We observe that independently of the frequency of failures (whether they are staggered or concurrent), Clonos' recovery behaves similarly. Before the downstream failures can be recovered, the upstream failures must finish recovering, such that they can replay their in-flight logs.
 Only partial throughput is lost during recovery, as records continue to flow through causally unnaffected paths even though shuffle connections are used. Similarly, latency is only increased on a small subset of records flowing along causally affected paths and latency quickly returns to its pre-failure value.
+
+%The take home message from these experiments is that Clonos does not need to stall the execution completely in order to recover, and that different partitions exhibit different latency characteristics: Figure~\ref{fig:experiment-grid-par5-par10}a depicts this in a very nice way. 
+%In fact, what happens there is that the three failed operators increase their latency individually, while processing never really stalls.
+%The same can be seen in the concurrent failures in Figures~\ref{fig:experiment-grid-par5-par10}b and d: although the failures happen at the same time, the three operators recover incrementally and independently, not affecting the throughput by as much as Flink does.
 
 \vspace{-5mm}
 \subsection{Memory Usage}
@@ -1138,11 +1309,13 @@ Streaming systems to date increasingly try to handle failures locally, that is, 
 Apache Spark~\cite{ArmbrustDT18} performs exactly-once local recovery but in a micro-batch processing model and assuming an idempotent sink that ignores already produced results on recovery.
 % by a) checking in a write ahead log which is the last committed micro-batch, b) loading that batch's state in its state store, and c) replaying the micro-batches following the last committed batch in order to reconstruct the system's state.
 
-Consistent local recovery is offered by SEEP~\cite{FernandezMK13} and its extension based on stateful dataflow graphs (SDG)~\cite{FernandezMK14}, Timestream~\cite{QianHS13}, Streamscope~\cite{LinHZ16}, and Rhino~\cite{delmonte2020rhino}. However, none of these systems supports nondeterministic computations and they make strong assumptions about input order.
+
+Consistent local recovery is offered by SEEP~\cite{FernandezMK13} and its extension based on stateful dataflow graphs (SDG)~\cite{FernandezMK14}, Timestream~\cite{QianHS13}, Streamscope~\cite{LinHZ16}, and Rhino~\cite{delmonte2020rhino}. However, none of these systems supports nondeterministic computations and they make strong assumptions about input order. 
 The only stream processing system that delivers consistent local recovery and can support nondeterministic computations with minimal assumptions is Millwheel~\cite{akidau2013millwheel}. However, Millwheel performs a transaction per record per operator on Spanner~\cite{spanner}. Spanner, to achieve low latency, depends on atomic clocks to operate which do not exist in commodity clusters. Clonos can provide Millwheel's guarantees and consistency on commodity hardware.
 Table~\ref{tab:determinism-assumptions} summarizes all systems' determinism assumptions.
 
 
+% Clonos takes a different approach. It relies on consistent snapshots~\cite{CarboneEF17} of the system's distributed state taken by periodic checkpoints like many other streaming systems~\cite{CarboneKE15, NoghabiPP17, ChandramouliGB15}. To achieve consistent local recovery, it records nondeterministic events happening in the system, packages those as determinants, and shares them with downstream operators so that they can be retrieved in the event of a failure. Clonos' in-memory lineage-based replay protocol protects from concurrent failures and keeps the recovery time  low.
 
 
 \subsection{High Availability}
@@ -1166,11 +1339,14 @@ Clonos delivers high availability based on passive replication by substituting o
       SEEP \& SDG \cite{FernandezMK14}, Rhino \cite{delmonte2020rhino} & Deterministic computations, monotonically increasing logical clock, records ordered by time.\\\bottomrule
       \toprule
   \end{tabular}
+%   \vspace{-2mm}
 \end{table}
 
 \subsection{Causal Logging}
 
 We presented causal logging~\cite{elnozahy1994manetho, elnozahy2002survey}  in \autoref{sec:background}. 
+% Causal logging is a method that provides precise rollback recovery in distributed message-passing systems.
+% It records nondeterministic events in an execution so that the execution can be repeated in exactly the same manner by interleaving the same nondeterministic events in the exact same order they happened originally.
 We have elaborated both the system design and implementation aspects of the causal log in Section~\ref{sec:design} and the nondeterministic aspects in Section~\ref{sec:nondeterminism}.
 
 Among streaming systems, Timestream~\cite{QianHS13} and Streamscope~\cite{LinHZ16} use an optimistic logging-inspired dependency tracking approach, which records input and output dependencies in computations and uses them to rebuild the state if needed.
@@ -1178,6 +1354,12 @@ Instead, Clonos records all nondeterministic events and the order of execution. 
 
 Closest to the spirit of Clonos is lineage stash~\cite{wang2019lineage}, which uses causal logging to provide exactly-once consistency with local recovery for nondeterministic operators. However, it does not support important nondeterministic functions in stream processing, such as timer-based services much needed for processing time windows and watermarks required for progress tracking and out-of-order data.
 In addition, it uses a micro-batch architecture while Clonos implements continuous data processing. Finally, Clonos also addresses issues of high availability with standby tasks, state shipping and reconfiguration.
+
+
+%Clonos is different to lineage stash in the following important ways.
+%First, Clonos is built on top of Apache Flink~\cite{CarboneKE15}, a standard stream processing system with a data-parallel architecture and continuous processing model while lineage stash is built on top of Ray~\cite{moritz2018ray}, a task-parallel and actor-based system. Clonos schedules operators on the data flow graph once and streams data continuously to the graph through persistent connections, while lineage stash schedules thousands to millions of tasks that are executed asynchronously when their inputs become available.
+%Second, Clonos' fault tolerance and recovery is based on global consistent snapshots of the system's distributed state which it complements by logging in-flight outputs and determinants of nondeterministic events, while lineage stash records the lineage of computations in order to reconstruct them. Clonos maintains the causal log in memory and only flushes to disk if memory availability is low or if users opt for it, while lineage stash regularly flushes the log to disk asynchronously in order to lower its memory size. Checkpoints allow Clonos to dispose the log in regular intervals. For long running jobs, which is the norm in stream processing, lineage stash also turns to global checkpoints.
+%Finally, Clonos addresses the challenges of local recovery, high availability, and nondeterminism specifically for stream processing where operators are long-running, important nondeterministic computations have to be supported such as processing time windows, and the system executes important nondeterministic events like checkpoints, callbacks, and watermarks. In this paper we collect our experiences of making a sophisticated scale-out stream processing system highly available with exactly-once consistent local recovery including nondeterministic computations and events.
 
 
 \section{Conclusions}
@@ -1189,10 +1371,24 @@ At the moment, we are extending our work into reducing the overhead of causal lo
 
 \para{Acknowledgements} This work has been partially funded by the H2020 project OpertusMundi No. 870228, and the ICAI ``AI for Fintech Lab" project. Experiments were carried out on the Dutch national e-infrastructure with the support of SURF Cooperative.
 
+%At the moment, we we are looking at specialized, compressed data structures that can reduce the overhead of causal logging, as well as strategies to quickly replace straggler operators, treating them in a similar way that we deal with failed operators.
 
 
 \balance
 
+% \newpage
+%%
+%% The acknowledgments section is defined using the "acks" environment
+%% (and NOT an unnumbered section). This ensures the proper
+%% identification of the section in the article metadata, and the
+%% consistent spelling of the heading.
+% \begin{acks}
+%   SurfSara ack
+% \end{acks}
+  
+  %%
+  %% The next two lines define the bibliography style to be used, and
+  %% the bibliography file.
   \bibliographystyle{ACM-Reference-Format}
   \bibliography{hastreaming}
   
