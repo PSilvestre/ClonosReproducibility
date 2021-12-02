@@ -20,32 +20,29 @@ fi
 function clear_kafka_topics() {
   local p=$1
 
-  echo "Trying to clear topics" >&2
-  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --add-config retention.ms=1000 --entity-name $INPUT_TOPIC >&2
-  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --add-config retention.ms=1000 --entity-name $OUTPUT_TOPIC >&2
+  echoinfo "Resetting Kafka Topics for new experiment" >&2
+  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --add-config retention.ms=1000 --entity-name $INPUT_TOPIC > /dev/null 2>&1
+  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --add-config retention.ms=1000 --entity-name $OUTPUT_TOPIC  > /dev/null 2>&1
   sleep 1
 
-  echo "Remove deletion mechanism" >&2
-  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --delete-config retention.ms --entity-name $INPUT_TOPIC >&2
-  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --delete-config retention.ms --entity-name $OUTPUT_TOPIC >&2
+  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --delete-config retention.ms --entity-name $INPUT_TOPIC > /dev/null 2>&1
+  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --delete-config retention.ms --entity-name $OUTPUT_TOPIC > /dev/null 2>&1
   sleep 1
 
-  echo "Now delete topics" >&2
-  ./kafka/bin/kafka-topics.sh --zookeeper "$ZK_ADDR" --topic $INPUT_TOPIC --delete >&2
-  ./kafka/bin/kafka-topics.sh --zookeeper "$ZK_ADDR" --topic $OUTPUT_TOPIC --delete >&2
+  ./kafka/bin/kafka-topics.sh --zookeeper "$ZK_ADDR" --topic $INPUT_TOPIC --delete > /dev/null 2>&1
+  ./kafka/bin/kafka-topics.sh --zookeeper "$ZK_ADDR" --topic $OUTPUT_TOPIC --delete > /dev/null 2>&1
   sleep 1
 
-  echo "Create topics" >&2
-  ./kafka/bin/kafka-topics.sh --create --zookeeper "$ZK_ADDR" --topic $INPUT_TOPIC --partitions "$p" --replication-factor 1 >&2
-  ./kafka/bin/kafka-topics.sh --create --zookeeper "$ZK_ADDR" --topic $OUTPUT_TOPIC --partitions "$p" --replication-factor 1 >&2
+  ./kafka/bin/kafka-topics.sh --create --zookeeper "$ZK_ADDR" --topic $INPUT_TOPIC --partitions "$p" --replication-factor 1 > /dev/null 2>&1
+  ./kafka/bin/kafka-topics.sh --create --zookeeper "$ZK_ADDR" --topic $OUTPUT_TOPIC --partitions "$p" --replication-factor 1 > /dev/null 2>&1
   sleep 1
 }
 
 function get_job_vertexes() {
   local jobid=$1
 
-  response=$(curl -sS -X GET "http://$FLINK_ADDR/jobs/$jobid")
-  vertex_ids=($(echo $response | jq '.vertices[] | .id' | tr -d '"'))
+  local response=$(curl -sS -X GET "http://$FLINK_ADDR/jobs/$jobid")
+  local vertex_ids=($(echo $response | jq '.vertices[] | .id' | tr -d '"'))
   echo "${vertex_ids[@]}"
 }
 
@@ -58,15 +55,16 @@ function get_vertex_host() {
 }
 
 function reset_flink_cluster() {
+  echoinfo "Resetting Flink cluster for new experiment"
   if [ "$REMOTE" = "0" ]; then
-    docker-compose down -v && docker-compose up -d --scale taskmanager=$NUM_TASKMANAGERS_REQUIRED
+    $(cd ./compose && docker-compose down -v 2> /dev/null && docker-compose up -d --scale taskmanager=$NUM_TASKMANAGERS_REQUIRED 2> /dev/null)
   else
     kubectl delete pod $(kubectl get pods | grep flink | awk {'print $1'})
   fi
 }
 
 function kill_taskmanager() {
-  taskmanager_to_kill=$1
+  local taskmanager_to_kill=$1
   if [ "$REMOTE" = "0" ]; then
     docker kill "$taskmanager_to_kill"
   else
@@ -92,9 +90,9 @@ function perform_failures() {
 
   if [ "$killtype" = "single" ]; then
     #Kill par 0 at the requested depth
-    depth_to_kill=$((kd - 1))
-    par_to_kill=0
-    index_to_kill=$((depth_to_kill * p + par_to_kill))
+    local depth_to_kill=$((kd - 1))
+    local par_to_kill=0
+    local index_to_kill=$((depth_to_kill * p + par_to_kill))
     local taskmanager_to_kill=${taskmanagers_used[$index_to_kill]}
     kill_taskmanager "$taskmanager_to_kill"
     echo "$taskmanager_to_kill $depth_to_kill $par_to_kill $kill_time" >>"$path"/killtime
