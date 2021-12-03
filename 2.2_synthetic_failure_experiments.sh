@@ -120,7 +120,7 @@ start_synthetic_failure_experiment() {
   clear_kafka_topics $topic_partitions
   reset_flink_cluster $num_nodes_needed
 
-  id=$(push_job_jar $system)
+  id=$(push_job_jar synthetic_workload_$system)
 
   start_distributed_producers $TOTAL_EXPERIMENT_TIME $throughput
   echo "$throughput" > $path/input-throughput

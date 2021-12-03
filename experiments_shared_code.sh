@@ -124,7 +124,7 @@ function perform_failures() {
 
 function push_job_jar() {
   local jar_name=$1
-  local response=$(curl -sS -X POST -H "Expect:" -F "jarfile=@job-$jar_name.jar" http://$FLINK_ADDR/jars/upload)
+  local response=$(curl -sS -X POST -H "Expect:" -F "jarfile=@$jar_name.jar" http://$FLINK_ADDR/jars/upload)
   echo "PUSH: $response" >&2
   local id=$(echo "$response" | jq '.filename' | tr -d '"' | tr "/" "\n" | tail -n1)
   sleep 10
