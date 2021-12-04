@@ -4,16 +4,16 @@ services:
 #====================== Kafka =================================
   zookeeper:
     image: wurstmeister/zookeeper
-    mem_limit: 512m
-    mem_reservation: 512m
-    cpus: 0.5
+    mem_limit: 1024m
+    mem_reservation: 1024m
+    cpus: 1
     ports:
       - "2181:2181"
   kafka:
     image: wurstmeister/kafka:2.11-0.11.0.3
-    mem_limit: 1024m
-    mem_reservation: 1024m
-    cpus: 1
+    mem_limit: 2048m
+    mem_reservation: 2048m
+    cpus: 2
     ports:
       - "9092:9092"
     links:
@@ -21,11 +21,11 @@ services:
     environment:
       KAFKA_ADVERTISED_HOST_NAME: 172.17.0.1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
       KAFKA_DELETE_TOPIC_ENABLE: 'true'
-      KAFKA_MAX_TRANSACTION_TIMEOUT_MS: 3600000
-      KAFKA_TRANSACTION_MAX_TIMEOUT_MS: 3600000
       KAFKA_LOG_MESSAGE_TIMESTAMP_TYPE: 'LogAppendTime'
+      #KAFKA_LOG4J_LOGGERS: "org.apache.zookeeper=ERROR,org.apache.kafka=ERROR, kafka=ERROR, kafka.cluster=ERROR,kafka.controller=ERROR, kafka.coordinator=ERROR,kafka.log=ERROR,kafka.server=ERROR,kafka.zookeeper=ERROR,state.change.logger=ERROR"
+      #KAFKA_LOG4J_ROOT_LOGLEVEL: "ERROR"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
@@ -35,7 +35,7 @@ services:
     image: ${SYSTEM_CONTAINER_IMG}
     mem_limit: 1024m
     mem_reservation: 1024m
-    cpus: 1
+    cpus: 2
     expose:
       - "6123"
     ports:
@@ -45,6 +45,7 @@ services:
       - namenode
     links:
       - namenode:hdfs-namenode
+      - kafka:kafkfa
     volumes:
       - ./flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
       - ./log4j-console.properties:/opt/flink/conf/log4j-console.properties
@@ -68,6 +69,7 @@ services:
     links:
       - jobmanager:jobmanager
       - namenode:hdfs-namenode
+      - kafka:kafkfa
     environment:
        JOB_MANAGER_RPC_ADDRESS: jobmanager
        # ================ HDFS ===========================================

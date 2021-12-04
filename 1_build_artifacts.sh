@@ -1,11 +1,15 @@
 #!/bin/bash
 
 #Clone Clonos
+
+CLONOS_IMG="clonos_repro_build"
+FLINK_IMG="flink_repro_build"
+
 if [ ! -d "./Clonos" ]; then
   echoinfo "Cloning Clonos"
   git clone https://github.com/delftdata/Clonos
   echoinfo "Building Clonos using Maven"
-  pushd ./Clonos
+  pushd ./Clonos > /dev/null 2>&1
   mvn install -DskipTests -Dcheckstyle.skip >/dev/null 2>&1
 
   echoinfo "Building docker image for Clonos named: $CLONOS_IMG"
@@ -37,7 +41,19 @@ if [ ! -d "./Clonos" ]; then
   popd > /dev/null 2>&1 #back to script home dir
 
   if [ "$REMOTE" = "1" ]; then
-    echoinfo "Pushing docker images to docker hub so they can be fetched by Kubernetes cluster..."
+
+    docker_username=$(docker info | sed '/Username:/!d;s/.* //')
+    CLONOS_IMG_W_USERNAME="$docker_username/clonos_repro_build"
+    FLINK_IMG_W_USERNAME="$docker_username/flink_repro_build"
+
+    echoinfo "Pushing docker images to docker hub so they can be fetched by Kubernetes cluster. This may take a while..."
+    echoinfo "Docker user name: $docker_username"
+    docker tag $CLONOS_IMG $CLONOS_IMG_W_USERNAME >/dev/null 2>&1
+    docker tag $FLINK_IMG FLINK_IMG_W_USERNAME >/dev/null 2>&1
+
+    CLONOS_IMG=$CLONOS_IMG_W_USERNAME
+    FLINK_IMG=$FLINK_IMG_W_USERNAME
+
     docker push $CLONOS_IMG >/dev/null 2>&1
     docker push $FLINK_IMG >/dev/null 2>&1
   fi
@@ -45,9 +61,3 @@ else
   echoinfo "Skipping build of docker images from as ./Clonos already exists. Using images built earlier: $CLONOS_IMG and $FLINK_IMG"
 fi
 
-if [ ! -d "./beam" ]; then
-  echoinfo "Cloning Clonos' Beam implementation for NEXMARK experiments"
-  git clone https://github.com/delftdata/beam
-else
-  echoinfo "Skipping git clone of beam because directory already present."
-fi

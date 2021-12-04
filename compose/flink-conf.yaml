@@ -64,8 +64,8 @@ metrics.latency.granularity: single
 metrics.latency.history-size: 10
 web.refresh-interval: 2000
 
-heartbeat.interval: 4000
-heartbeat.timeout: 6000
+heartbeat.interval: 10000
+heartbeat.timeout: 50000
 
 taskmanager.network.request-backoff.initial: 500
 taskmanager.network.request-backoff.max: 100000

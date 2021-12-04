@@ -5,7 +5,7 @@ NUM_PRODUCERS_PER_HOST=2 #use 2 cores to generate data in data generators
 
 if [ "$REMOTE" = "0" ]; then
   FLINK_ADDR=localhost:8081
-  KAFKA_BOOTSTRAP_ADDR=172.17.0.1:9092 #TODO check this...
+  KAFKA_BOOTSTRAP_ADDR="kafka:9092,172.17.0.1:9092"
   KAFKA_EXTERNAL_ADDR=172.17.0.1:9092
   ZK_ADDR=localhost:2181
 else
@@ -20,7 +20,6 @@ fi
 function clear_kafka_topics() {
   local p=$1
 
-  echoinfo "Resetting Kafka Topics for new experiment" >&2
   ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --add-config retention.ms=1000 --entity-name $INPUT_TOPIC > /dev/null 2>&1
   ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --add-config retention.ms=1000 --entity-name $OUTPUT_TOPIC  > /dev/null 2>&1
   sleep 1
@@ -55,7 +54,7 @@ function get_vertex_host() {
 }
 
 function reset_flink_cluster() {
-  echoinfo "Resetting Flink cluster for new experiment"
+  echoinfo "Resetting infrastructure for new experiment."
   if [ "$REMOTE" = "0" ]; then
     $(cd ./compose && docker-compose down -v 2> /dev/null && docker-compose up -d --scale taskmanager=$NUM_TASKMANAGERS_REQUIRED 2> /dev/null)
   else
@@ -131,14 +130,9 @@ function push_job_jar() {
   echo "$id"
 }
 
-function cancel_job() {
-  local jobid=$(get_job_id)
-  curl -sS -X PATCH "http://$FLINK_ADDR/jobs/$jobid?mode=cancel" >/dev/null
-  sleep 3
-}
-
 function get_job_id() {
-  local jobid=$(curl -sS -X GET "http://$FLINK_ADDR/jobs" | jq '.jobs[0].id' | tr -d '"')
+  local index=$1
+  local jobid=$(curl -sS -X GET "http://$FLINK_ADDR/jobs" | jq ".jobs[$index].id" | tr -d '"')
   echo $jobid
 }
 

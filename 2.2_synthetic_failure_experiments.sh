@@ -146,7 +146,4 @@ start_synthetic_failure_experiment() {
   perform_failures "$jobid" "$path" $d $p $kd $killtype
 
   sleep $SLEEP_AFTER_KILL
-
-  echo "Canceling the job with id $jobid" >&2
-  cancel_job
 }

@@ -3,27 +3,21 @@
 #Limit Gradle Mem usage
 export GRADLE_OPTS="-Xmx256m -Dorg.gradle.jvmargs='-Xmx1024m -XX:MaxPermSize=256m'"
 
-# QUERY|PAR|KD|THROUGHPUT|
+# Checkpoint every 10 seconds
+D_CI=10000
 
-#TODO
-# --numEvents may also be a factor for overhead queries
-#   I think we will need to adjust the number of events per query.
-
-D_PARALLELISM_OVERHEAD=25
-D_PARALLELISM_FAILURE=5
-
-D_CI=5000
-
-D_DSD_FLINK=0 #Flink does not have this parameter
 D_DSD_CLONOS_FAILURE=1
+D_DSD_FLINK=0 #Flink does not have this parameter
 
 D_PTI_CLONOS=10
 D_PTI_FLINK=0 #Flink does not have this parameter
 
-FAILURE_TOTAL_EXPERIMENT_TIME=230
-INIT_TIME=90
+PRODUCER_ONLY_TIME=30
+INIT_TIME=300 # 5 minutes of init time because the download of BEAM jars can take very long time.
 TIME_TO_KILL=60
-MEASUREMENT_DURATION=$((FAILURE_TOTAL_EXPERIMENT_TIME - INIT_TIME))
+MEASUREMENT_DURATION=250
+FAILURE_TOTAL_EXPERIMENT_TIME=$(( INIT_TIME + MEASUREMENT_DURATION ))
+SLEEP_AFTER_KILL=$((MEASUREMENT_DURATION - TIME_TO_KILL + 30))
 
 function build_args() {
   jobstr=$1
@@ -36,7 +30,7 @@ function build_args() {
   local q="${params[1]}"
   local p="${params[2]}"
   local ci="${params[3]}"
-  local ne="${params[4]}" #Number of events total to produce. In failure mode, this is used to calculate the producer throughput.
+  local ne="${params[4]}" #Number of events total to produce. In failure mode, this is producer throughput.
 
   # Parameters only used if system="clonos"
   local dsd="${params[5]}"
@@ -54,38 +48,54 @@ function build_args() {
   args+="--monitorJobs=true "
   args+="--externalizedCheckpointsEnabled=true "
   args+="--objectReuse=true "
-  args+="--debug=true "
-  args+="--shutdownSourcesOnFinalWatermark=true "
-  #--shutdownSourcesAfterIdleMs=100
   args+="--autoWatermarkInterval=200 "
   args+="--useWallclockEventTime=false "
   args+="--probDelayedEvent=0 "
   args+="--slotSharingEnabled=false "
-  args+="--numEvents=$ne "
+  args+="--shutdownSourcesOnFinalWatermark=true "
 
   if [ "$system" = "clonos" ]; then
     args+="--determinantSharingDepth=$dsd "
     args+="--periodicTimeInterval=$pti "
   fi
 
-  if [ $type != "overhead" ]; then
-    #If not overhead (producer or failure) we have to append kafka info
-    args+="--bootstrapServers=$KAFKA_BOOTSTRAP_ADDRESS "
+  if [ $type = "overhead" ]; then
+    args+="--numEvents=$ne "
+    args+="--debug=true "
+  else
+    args+="--bootstrapServers=$KAFKA_BOOTSTRAP_ADDR "
     args+="--sourceType=KAFKA "
     args+="--kafkaTopic=$INPUT_TOPIC "
     args+="--sinkType=KAFKA "
     args+="--kafkaResultsTopic=$OUTPUT_TOPIC "
-  fi
 
-  if [ $type = "producer" ]; then
-    local produce_throughput=$((ne / FAILURE_TOTAL_EXPERIMENT_TIME))
-    args+="--pubSubMode=PUBLISH_ONLY "
-    args+="--isRateLimited=true "
-    args+="--firstEventRate=$produce_throughput "
-    args+="--nextEventRate=$produce_throughput "
+    args+="--debug=false "
+
+    if [ $type = "producer" ]; then
+      produce_throughput=$ne
+      numEvents=$(( produce_throughput * ( FAILURE_TOTAL_EXPERIMENT_TIME + PRODUCER_ONLY_TIME ) ))
+
+      args+="--pubSubMode=PUBLISH_ONLY "
+      args+="--isRateLimited=true "
+      args+="--numEvents=$numEvents "
+      args+="--firstEventRate=$produce_throughput "
+      args+="--nextEventRate=$produce_throughput "
+
+    elif [ $type = "failure" ]; then
+      args+="--pubSubMode=SUBSCRIBE_ONLY "
+      args+="--isRateLimited=false "
+    fi
   fi
 
   echo "$args"
+}
+
+function nexmark_failure_ensure_compiled() {
+  jobstr="$system;1;1;5000;10000;1;10;-1"
+  args=$(build_args $jobstr "producer" )
+  pushd ./beam > /dev/null 2>&1
+  timeout -s 9 300 bash -c "./gradlew :sdks:java:testing:nexmark:run -Pnexmark.runner=\":runners:$system:1.7\" -Pnexmark.args=\"$args\"" >/dev/null 2>&1
+  popd >/dev/null 2>&1 #back to root
 }
 
 function start_nexmark_failure_experiment() {
@@ -99,30 +109,32 @@ function start_nexmark_failure_experiment() {
   local p="${params[2]}"
   local kd="${params[7]}"
 
-  args=$(build_args $jobstr "failure")
 
+  echoinfo "Starting data producer job"
   args_producer=$(build_args $jobstr "producer")
+  timeout -s 9 $(( FAILURE_TOTAL_EXPERIMENT_TIME + PRODUCER_ONLY_TIME )) bash -c "cd ./beam && ./gradlew :sdks:java:testing:nexmark:run -Pnexmark.runner=\":runners:$system:1.7\" -Pnexmark.args=\"$args_producer\"" >prod.txt 2>&1 &
 
-  echo "Running publisher"
-  timeout $FAILURE_TOTAL_EXPERIMENT_TIME bash -c "cd ./beam && ./gradlew :sdks:java:testing:nexmark:run -Pnexmark.runner=\":runners:$system:1.7\" -Pnexmark.args=$args_producer" > /dev/null 2>&1
-  echo "Running Job"
-  timeout $FAILURE_TOTAL_EXPERIMENT_TIME bash -c "cd ./beam && ./gradlew :sdks:java:testing:nexmark:run -Pnexmark.runner=\":runners:$system:1.7\" -Pnexmark.args=$args" > /dev/null 2>&1
-  sleep $INIT_TIME
+  sleep $PRODUCER_ONLY_TIME
 
-  # Begin measuring throughput and latency, sleep until ready to fail
+  echoinfo "Starting data consumer job"
+  args=$(build_args $jobstr "failure" )
+  timeout -s 9 $(( FAILURE_TOTAL_EXPERIMENT_TIME )) bash -c "cd ./beam && ./gradlew :sdks:java:testing:nexmark:run -Pnexmark.runner=\":runners:$system:1.7\" -Pnexmark.args=\"$args\"" > cons.txt 2>&1 &
+
+  sleep $(( INIT_TIME ))
+
+  echoinfo "Starting throughput and latency measurements."
   local resolution=2
   python3 ./end_to_end_latency_measurer.py -k $KAFKA_EXTERNAL_ADDR -o $OUTPUT_TOPIC -r $resolution -p $p -d $MEASUREMENT_DURATION -mps 1 -t false >$path/latency &
   python3 ./throughput_measurer.py $MEASUREMENT_DURATION 1 $KAFKA_EXTERNAL_ADDR $OUTPUT_TOPIC verbose >$path/throughput &
   sleep $TIME_TO_KILL
 
-  local jobid=$(get_job_id)
+  local jobid=$(get_job_id 0)
+  echoinfo "Performing failure on job: $jobid"
   perform_failures "$jobid" "$path" 0 $p $kd "single"
 
-  sleep $((MEASUREMENT_DURATION - TIME_TO_KILL))
-
-  echo "Canceling the job with id $jobid"
-  cancel_job
+  sleep $SLEEP_AFTER_KILL
 }
+
 
 function start_nexmark_overhead_experiment() {
   jobstr=$1

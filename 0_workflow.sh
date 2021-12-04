@@ -111,15 +111,18 @@ fi
 # 3. Then, SurfSara deployments.
 
 if [ "$BUILD_DOCKER_IMAGES_FROM_SRC" == 1 ]; then
-  docker_username=$(docker info | sed '/Username:/!d;s/.* //')
-  echoinfo "Using a local build of docker images."
-  echoinfo "Docker user name: $docker_username"
-  CLONOS_IMG="$docker_username/clonos_repro_build"
-  FLINK_IMG="$docker_username/flink_repro_build"
-
   # Clone repositories & build
   . 1_build_artifacts.sh
 fi
+
+
+if [ ! -d "./beam" ]; then
+  echoinfo "Cloning Clonos' Beam implementation for NEXMARK experiments"
+  git clone https://github.com/delftdata/beam
+else
+  echoinfo "Skipping git clone of beam because directory already present."
+fi
+
 
 if [ "$REMOTE" = "1" ]; then
   # Needed for helm to function
