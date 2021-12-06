@@ -24,8 +24,8 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
       KAFKA_DELETE_TOPIC_ENABLE: 'true'
       KAFKA_LOG_MESSAGE_TIMESTAMP_TYPE: 'LogAppendTime'
-      #KAFKA_LOG4J_LOGGERS: "org.apache.zookeeper=ERROR,org.apache.kafka=ERROR, kafka=ERROR, kafka.cluster=ERROR,kafka.controller=ERROR, kafka.coordinator=ERROR,kafka.log=ERROR,kafka.server=ERROR,kafka.zookeeper=ERROR,state.change.logger=ERROR"
-      #KAFKA_LOG4J_ROOT_LOGLEVEL: "ERROR"
+      KAFKA_LOG4J_LOGGERS: "org.apache.zookeeper=ERROR,org.apache.kafka=ERROR, kafka=ERROR, kafka.cluster=ERROR,kafka.controller=ERROR, kafka.coordinator=ERROR,kafka.log=ERROR,kafka.server=ERROR,kafka.zookeeper=ERROR,state.change.logger=ERROR"
+      KAFKA_LOG4J_ROOT_LOGLEVEL: "ERROR"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:

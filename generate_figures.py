@@ -18,6 +18,10 @@ def failure_get_killtimes(path: str):
 
     return killtimes
 
+def get_input_throughput(path: str):
+    with open(f"{path}/input-throughput") as f:
+        throughput = int(f.readline())
+    return throughput
 
 def lowpass_smooth(data: pd.Series, alpha: float):
     data_filtered = []
@@ -166,7 +170,7 @@ def failure_throughput_compare(save_path: str, thrs: List[pd.DataFrame], killtim
                 plt.axvline((kill - init_times[i]) / 1000, color="r", linestyle="--")
 
     if input_thr != 0:
-        plt.axhline(input_thr, color="grey", linestyle="--")
+        plt.axhline(input_thr / normalizer, color="grey", linestyle="--")
 
     plt.xlabel("Experiment Time (s)")
     plt.ylabel(ylabel)
@@ -274,19 +278,23 @@ def draw_nexmark_fail_experiment_graph(input_path: str, output_path: str):
 
 def draw_synthetic_fail_experiment_graph(input_path: str, output_path: str):
     for fail_type in ["multiple", "concurrent"]:
-        clonos_thr = pd.read_csv(f"{input_path}/clonos/fail_{fail_type}/throughput", sep="\s+")
-        clonos_lat = pd.read_csv(f"{input_path}/clonos/fail_{fail_type}/latency", sep="\s+")
-        kts = failure_get_killtimes(f"{input_path}/clonos/fail_{fail_type}/killtime")
+        clonos_path = f"{input_path}/clonos/fail_{fail_type}"
+        clonos_thr = pd.read_csv(f"{clonos_path}/throughput", sep="\s+")
+        clonos_lat = pd.read_csv(f"{clonos_path}/latency", sep="\s+")
+        kts = failure_get_killtimes(f"{clonos_path}/killtime")
 
-        flink_thr = pd.read_csv(f"{input_path}/flink/fail_{fail_type}/throughput", sep="\s+")
-        flink_lat = pd.read_csv(f"{input_path}/flink/fail_{fail_type}/latency", sep="\s+")
+        flink_path = f"{input_path}/flink/fail_{fail_type}"
+        flink_thr = pd.read_csv(f"{flink_path}/throughput", sep="\s+")
+        flink_lat = pd.read_csv(f"{flink_path}/latency", sep="\s+")
 
         max_thr_measured = max(clonos_thr["THROUGHPUT"].max(), flink_thr["THROUGHPUT"].max())
+
+        input_throughput = get_input_throughput(clonos_path)
 
         failure_throughput_compare(output_path + "/" + fail_type + "_failure_throughput.pdf", [clonos_thr, flink_thr],
                                    kts,
                                    time_range=(30, 200), normalizer=1000000,
-                                   ylabel="Throughput (M Records/second)", input_thr=0.25)  # TODO input thr
+                                   ylabel="Throughput (M Records/second)", input_thr=input_throughput)  # TODO input thr
         failure_latency_compare(f"{output_path}/{fail_type}_failure_latency.pdf", [clonos_lat, flink_lat], kts,
                                 time_range=(30, 200))
 

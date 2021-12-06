@@ -13,8 +13,7 @@ def sample_output_topic(args):
     mps = int(args["measures_per_second"])
     experiment_duration = int(args["duration"])
     topic = args["output_topic"]
-    resolution = int(args["resolution"])
-    transactional = args["transactional"]
+    input_ts_in_msg = args["input_ts_in_msg"]
     partition_table = {}
 
     consumers = create_consumers(args, num_partitions, partition_table)
@@ -35,9 +34,9 @@ def sample_output_topic(args):
         while lag >= ms_per_update:
             if current_time >= start_time + experiment_duration * 1000:
                 break
-            step(consumers, partition_table, resolution, topic, transactional)
-            # time.sleep()
+            step(consumers, partition_table, topic, input_ts_in_msg)
             lag -= ms_per_update
+        time.sleep((ms_per_update / 10) / 1000)
 
     for i in range(num_partitions):
         array = partition_table[i]
@@ -47,52 +46,35 @@ def sample_output_topic(args):
     return partition_table
 
 
-def step(consumers, partition_table, resolution, topic, transactional):
-    if transactional:  # consume rest of data
-        time_now = current_milli_time()
-        for partition, c in enumerate(consumers):
-            while True:
-                msg = poll_next_message(c, partition, resolution, topic,
-                                        transactional)
-                if msg is None or msg.error():
-                    if msg is not None:
-                        print("error: " + str(msg.error()))
-                    break
-                process_message(msg, partition, partition_table, time_now)
-    else:
-        # Get one message from each consumer
-        for partition, c in enumerate(consumers):
-            msg = poll_next_message(c, partition, resolution, topic, transactional)
-            if msg is None or msg.error():
-                if msg is not None:
-                    print("error:" + str(msg.error()))
-                continue
-            process_message(msg, partition, partition_table)
+def step(consumers, partition_table, topic, input_ts_in_msg):
+    # Get one message from each consumer
+    for partition, c in enumerate(consumers):
+        msg = poll_next_message(c, partition, topic)
+        if msg.error():
+            continue
+        else:
+            process_message(msg, partition, partition_table, input_ts_in_msg)
 
 
-def poll_next_message(c, partition, resolution, topic, transactional):
+def poll_next_message(c, partition, topic):
     msg = None
-    try:
-        offset = get_next_offset(c, partition, resolution, topic, transactional)
-        c.seek(TopicPartition(topic, partition, offset))
-        msg = c.poll(timeout=0.05)
-    except Exception as e:
-        print(e)
+    while msg is None:
+        try:
+            c.seek(TopicPartition(topic, partition, OFFSET_END))
+            msg = c.poll(timeout=0.05)
+        except Exception as e:
+            continue
+
     return msg
 
 
-def get_next_offset(c, partition, resolution, topic, transactional):
-    if transactional:
-        return c.position([TopicPartition(topic, partition)])[0].offset + resolution
+def process_message(msg, partition, partition_table, input_ts_in_msg, visibility_ts=0):
+    if input_ts_in_msg:
+        dict_msg = json.loads(msg.value())
+        input_ts = int(dict_msg["inputTS"])
     else:
-        return OFFSET_END
+        input_ts = int(str(msg.value().decode('utf-8')).split(",")[0])
 
-
-def process_message(msg, partition, partition_table, visibility_ts=0):
-    dict = json.loads(msg.value())
-    print("timestamp: " + dict["inputTS"])
-    print("timestamp[2:]: " + dict["inputTS"][2:])
-    input_ts = int(dict["inputTS"][2:])
     output_ts = int(msg.timestamp()[1])
     if visibility_ts == 0:
         partition_table[partition].append((input_ts, output_ts, visibility_ts, output_ts - input_ts))
@@ -102,7 +84,6 @@ def process_message(msg, partition, partition_table, visibility_ts=0):
 
 def create_consumers(args, num_partitions, partition_table):
     consumers = []
-    transactional = args["transactional"]
     for i in range(num_partitions):
         partition_table[i] = []
         oc = Consumer({
@@ -110,7 +91,7 @@ def create_consumers(args, num_partitions, partition_table):
             'group.id': str(uuid.uuid4()),
             'auto.offset.reset': 'latest',
             'api.version.request': True,
-            'isolation.level': ('read_committed' if transactional else 'read_uncommitted'),
+            'isolation.level': 'read_uncommitted',
             'max.poll.interval.ms': 86400000
         })
         oc.assign([TopicPartition(args["output_topic"], i)])
@@ -148,31 +129,19 @@ def print_header(num_partitions):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='SFaaS CLI')
+    parser = argparse.ArgumentParser(description='End to end latency measurer')
     parser.add_argument("-k", "--kafka", help="The location of kafka. A comma separated list of ip:port pairs.")
     parser.add_argument("-o", "--output-topic", help="The output topic")
     parser.add_argument("-d", "--duration", help="Duration of experiment", default=120)
     parser.add_argument("-mps", "--measures-per-second",
                         help="The number of measurements to perform every second",
                         default=2)
-    parser.add_argument("-r", "--resolution", help="The number of records to skip between each consume", default=10000)
     parser.add_argument("-p", "--num-partitions", help="The number of partitions", default=1)
-    parser.add_argument("-t", "--transactional", help="Whether the consumer is transactional")
+    parser.add_argument('--nexmark', dest='input_ts_in_msg', action='store_false')
+    parser.add_argument('--synthetic', dest='input_ts_in_msg', action='store_true')
     args = parser.parse_args()
     args = vars(args)
-    args["transactional"] = str2bool(args["transactional"])
     return args
-
-
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
 def main():

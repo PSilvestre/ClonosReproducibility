@@ -18,28 +18,29 @@ declare -A QUERY_TO_NUM_EVENTS
 #QUERY_TO_NUM_EVENTS[13]=10000000
 #QUERY_TO_NUM_EVENTS[14]=10000000
 
-QUERY_TO_NUM_EVENTS[1]=1000000
-QUERY_TO_NUM_EVENTS[2]=1000000
-QUERY_TO_NUM_EVENTS[3]=1000000
-QUERY_TO_NUM_EVENTS[4]=100000
-QUERY_TO_NUM_EVENTS[5]=100000
-QUERY_TO_NUM_EVENTS[6]=100000
-QUERY_TO_NUM_EVENTS[7]=100000
-QUERY_TO_NUM_EVENTS[8]=100000
-QUERY_TO_NUM_EVENTS[9]=100000
-QUERY_TO_NUM_EVENTS[11]=100000
-QUERY_TO_NUM_EVENTS[12]=100000
-QUERY_TO_NUM_EVENTS[13]=100000
-QUERY_TO_NUM_EVENTS[14]=100000
+QUERY_TO_NUM_EVENTS[1]=10000000
+QUERY_TO_NUM_EVENTS[2]=10000000
+QUERY_TO_NUM_EVENTS[3]=10000000
+QUERY_TO_NUM_EVENTS[4]=1000000
+QUERY_TO_NUM_EVENTS[5]=1000000
+QUERY_TO_NUM_EVENTS[6]=1000000
+QUERY_TO_NUM_EVENTS[7]=1000000
+QUERY_TO_NUM_EVENTS[8]=10000000
+QUERY_TO_NUM_EVENTS[9]=1000000
+QUERY_TO_NUM_EVENTS[11]=1000000
+QUERY_TO_NUM_EVENTS[12]=1000000
+QUERY_TO_NUM_EVENTS[13]=1000000
+QUERY_TO_NUM_EVENTS[14]=1000000
+
 # Throughput in failure experiments
 declare -A QUERY_TO_THROUGHPUT
 #QUERY_TO_THROUGHPUT[3]=50000
 #QUERY_TO_THROUGHPUT[8]=50000
 
-QUERY_TO_THROUGHPUT[3]=5000
-QUERY_TO_THROUGHPUT[8]=5000
+QUERY_TO_THROUGHPUT[3]=20000
+QUERY_TO_THROUGHPUT[8]=20000
 
-# Kill Depth in failure experiments. We set these such that they kill stateful operators (such as full-history join)
+# Kill Depth in failure experiments. We set these such that they kill stateful operators (such as join)
 declare -A QUERY_TO_KILL_DEPTH
 QUERY_TO_KILL_DEPTH[3]=2
 QUERY_TO_KILL_DEPTH[8]=1
@@ -65,6 +66,26 @@ path_prefix=$1
 overhead_path="$path_prefix/nexmark_overhead"
 echo -e "SYSTEM\tQUERY\tPARALLELISM\tDSD\tNUM_EVENTS\tTHROUGHPUT" >>$overhead_path
 
+function prepare_system() {
+  if [ "$REMOTE" = "0" ]; then
+    strategy=${SYSTEM_TO_FAILOVER_STRATEGY[$system]}
+    sed -i "s/jobmanager.execution.failover-strategy:.*/jobmanager.execution.failover-strategy: $strategy/g" ./compose/flink-conf.yaml
+  else
+    TODO=1
+  #TODO instakube deploy
+  fi
+}
+
+function set_number_of_standbys() {
+  num=$1
+  if [ "$REMOTE" = "0" ]; then
+    sed -i "s/jobmanager.execution.num-standby-tasks:.*/jobmanager.execution.num-standby-tasks: $num/g" ./compose/flink-conf.yaml
+  else
+    TODO=1
+  #TODO change kube value
+  fi
+}
+
 for system in  "clonos" "flink"; do
   echo "================================= Starting $system experiments ======================================="
 
@@ -75,49 +96,45 @@ for system in  "clonos" "flink"; do
   fi
 
   max_par=$(echo "${EXPERIMENT_TO_PARALLELISM[@]}" | tr " " "\n" | sort | tail -n1)
-  NUM_TASKMANAGERS_REQUIRED=$(( max_par * 4 * 2 )) # MAX_PAR * MAX_DEPTH * 2 (standby tasks) #TODO times 2 again cause of publisher and publisher standby?
-  if [ "$REMOTE" = "0" ]; then
-    strategy=${SYSTEM_TO_FAILOVER_STRATEGY[$system]}
-    sed -i "s/jobmanager.execution.failover-strategy:.*/jobmanager.execution.failover-strategy: $strategy/g" ./compose/flink-conf.yaml
-  else
-    TODO=1
-  #TODO instakube deploy
-  fi
+  NUM_TASKMANAGERS_REQUIRED=$(( max_par * 5 * 2 )) # MAX_PAR * MAX_DEPTH * 2 (standby tasks)
+
+  prepare_system
 
   # Source nexmark testing scripts
   . ./2.1_nexmark_experiments.sh
 
-#  echo -e "----------------------------- Starting Nexmark Overhead Experiments -------------------------------"
-#  $(cd ./beam && git checkout clonos-runner &> /dev/null)
+  echo -e "----------------------------- Starting Nexmark Overhead Experiments -------------------------------"
+  $(cd ./beam && git checkout clonos-runner &> /dev/null)
+  set_number_of_standbys 0
 
-#  for query in 1 2 3 4 5 6 7 8 9 11 12 13 14; do
-#    num_events=${QUERY_TO_NUM_EVENTS[$query]}
-#    par=${EXPERIMENT_TO_PARALLELISM["OVERHEAD"]}
-#    if [ "$system" = "clonos" ]; then
-#      #If the system is Clonos, run two configurations full DSD and one DSD
-#      for dsd in "-1" "1"; do
-#        reset_flink_cluster
-#        clear_kafka_topics $par
-#        echoinfo "Starting configuration: SYS:$system;Q:$query;PAR:$par;CI:$D_CI;NE:$num_events;DSD:$dsd;PTI:$D_PTI_CLONOS"
-#        jobstr="$system;$query;$par;$D_CI;$num_events;$dsd;$D_PTI_CLONOS"
-#        start_nexmark_overhead_experiment $jobstr $overhead_path
-#      done
-#    elif [ "$system" = "flink" ]; then
-#      reset_flink_cluster
-#      clear_kafka_topics $par
-#      echoinfo "Starting configuration: SYS:$system;Q:$query;PAR:$par;CI:$D_CI;NE:$num_events;DSD:$D_DSD_FLINK;PTI:$D_PTI_FLINK"
-#      jobstr="$system;$query;$par;$D_CI;$num_events;$D_DSD_FLINK;$D_PTI_FLINK"
-#      start_nexmark_overhead_experiment $jobstr $overhead_path
-#    fi
-#  done
-#
+  for query in 1 2 3 4 5 6 7 8 9 11 12 13 14; do
+    num_events=${QUERY_TO_NUM_EVENTS[$query]}
+    par=${EXPERIMENT_TO_PARALLELISM["OVERHEAD"]}
+    if [ "$system" = "clonos" ]; then
+      #If the system is Clonos, run two configurations full DSD and one DSD
+      for dsd in "-1" "1"; do
+        reset_flink_cluster
+        clear_kafka_topics $par
+        echoinfo "Starting configuration: SYS:$system;Q:$query;PAR:$par;CI:$D_CI;NE:$num_events;DSD:$dsd;PTI:$D_PTI_CLONOS"
+        jobstr="$system;$query;$par;$D_CI;$num_events;$dsd;$D_PTI_CLONOS"
+        start_nexmark_overhead_experiment $jobstr $overhead_path
+      done
+    elif [ "$system" = "flink" ]; then
+      reset_flink_cluster
+      clear_kafka_topics $par
+      echoinfo "Starting configuration: SYS:$system;Q:$query;PAR:$par;CI:$D_CI;NE:$num_events;DSD:$D_DSD_FLINK;PTI:$D_PTI_FLINK"
+      jobstr="$system;$query;$par;$D_CI;$num_events;$D_DSD_FLINK;$D_PTI_FLINK"
+      start_nexmark_overhead_experiment $jobstr $overhead_path
+    fi
+  done
+
   echo -e "----------------------------- Starting Nexmark Failure Experiments --------------------------------"
   $(cd ./beam && git checkout clonos-runner-failure-experiments > /dev/null 2>&1)
-  #echoinfo "Performing an initial experiment which is going to be DISCARDED. This ensures gradle build cache is warm for failure experiments."
-  #reset_flink_cluster
-  #clear_kafka_topics 1
-  #echoinfo "Starting discard experiment"
-  #nexmark_failure_ensure_compiled
+  set_number_of_standbys 1
+  reset_flink_cluster
+  clear_kafka_topics 1
+  echoinfo "Performing an initial experiment which is going to be DISCARDED. This ensures gradle build cache is warm for failure experiments."
+  nexmark_failure_ensure_compiled
 
   for query in 3 8; do
     par="${EXPERIMENT_TO_PARALLELISM["NEXMARK_Q$query"]}"
@@ -145,6 +162,7 @@ for system in  "clonos" "flink"; do
   for failure_type in "multiple" "concurrent"; do
     par="${EXPERIMENT_TO_PARALLELISM["SYNTH_${failure_type^^}"]}"
     path="$path_prefix/synthetic_failure/$system/fail_$failure_type"
+    mkdir -p "$path"
     jobstr="$system;$D_THR;$D_LTI;$D_WI;$D_DSD;$D_PTI;$failure_type;$D_KD;$D_CI;$D_SS;$D_AS;$D_KEYS;$par;$D_D;$D_SHFL;$D_O;$D_W_SIZE;$D_W_SLIDE;$D_ST;$D_TC;$D_GEN_TS;$D_GEN_RAND;$D_GEN_SER"
 
     reset_flink_cluster

@@ -20,20 +20,20 @@ fi
 function clear_kafka_topics() {
   local p=$1
 
-  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --add-config retention.ms=1000 --entity-name $INPUT_TOPIC > /dev/null 2>&1
-  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --add-config retention.ms=1000 --entity-name $OUTPUT_TOPIC  > /dev/null 2>&1
+  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --add-config retention.ms=1000 --entity-name $INPUT_TOPIC >/dev/null 2>&1
+  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --add-config retention.ms=1000 --entity-name $OUTPUT_TOPIC >/dev/null 2>&1
   sleep 1
 
-  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --delete-config retention.ms --entity-name $INPUT_TOPIC > /dev/null 2>&1
-  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --delete-config retention.ms --entity-name $OUTPUT_TOPIC > /dev/null 2>&1
+  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --delete-config retention.ms --entity-name $INPUT_TOPIC >/dev/null 2>&1
+  ./kafka/bin/kafka-configs.sh --zookeeper "$ZK_ADDR" --alter --entity-type topics --delete-config retention.ms --entity-name $OUTPUT_TOPIC >/dev/null 2>&1
   sleep 1
 
-  ./kafka/bin/kafka-topics.sh --zookeeper "$ZK_ADDR" --topic $INPUT_TOPIC --delete > /dev/null 2>&1
-  ./kafka/bin/kafka-topics.sh --zookeeper "$ZK_ADDR" --topic $OUTPUT_TOPIC --delete > /dev/null 2>&1
+  ./kafka/bin/kafka-topics.sh --zookeeper "$ZK_ADDR" --topic $INPUT_TOPIC --delete >/dev/null 2>&1
+  ./kafka/bin/kafka-topics.sh --zookeeper "$ZK_ADDR" --topic $OUTPUT_TOPIC --delete >/dev/null 2>&1
   sleep 1
 
-  ./kafka/bin/kafka-topics.sh --create --zookeeper "$ZK_ADDR" --topic $INPUT_TOPIC --partitions "$p" --replication-factor 1 > /dev/null 2>&1
-  ./kafka/bin/kafka-topics.sh --create --zookeeper "$ZK_ADDR" --topic $OUTPUT_TOPIC --partitions "$p" --replication-factor 1 > /dev/null 2>&1
+  ./kafka/bin/kafka-topics.sh --create --zookeeper "$ZK_ADDR" --topic $INPUT_TOPIC --partitions "$p" --replication-factor 1 >/dev/null 2>&1
+  ./kafka/bin/kafka-topics.sh --create --zookeeper "$ZK_ADDR" --topic $OUTPUT_TOPIC --partitions "$p" --replication-factor 1 >/dev/null 2>&1
   sleep 1
 }
 
@@ -56,7 +56,7 @@ function get_vertex_host() {
 function reset_flink_cluster() {
   echoinfo "Resetting infrastructure for new experiment."
   if [ "$REMOTE" = "0" ]; then
-    $(cd ./compose && docker-compose down -v 2> /dev/null && docker-compose up -d --scale taskmanager=$NUM_TASKMANAGERS_REQUIRED 2> /dev/null)
+    $(cd ./compose && docker-compose down -v 2>/dev/null && docker-compose up -d --scale taskmanager=$NUM_TASKMANAGERS_REQUIRED 2>/dev/null)
   else
     kubectl delete pod $(kubectl get pods | grep flink | awk {'print $1'})
   fi
@@ -65,11 +65,11 @@ function reset_flink_cluster() {
 function kill_taskmanager() {
   local taskmanager_to_kill=$1
   if [ "$REMOTE" = "0" ]; then
-    docker kill "$taskmanager_to_kill"
+    docker kill "$taskmanager_to_kill" >/dev/null 2>&1
   else
     kubectl delete --grace-period=0 --force pod "$taskmanager_to_kill"
   fi
-  echo "Kiled taskmanager $taskmanager_to_kill" >&2
+  echo "Killed taskmanager $taskmanager_to_kill" >&2
 }
 
 function perform_failures() {
@@ -85,7 +85,6 @@ function perform_failures() {
 
   local taskmanagers_used=($(for vid in ${vertex_ids[@]}; do curl -sS -X GET "http://$FLINK_ADDR/jobs/$jobid/vertices/$vid/taskmanagers" | jq '.taskmanagers[] | .host' | tr -d '"' | tr ":" " " | awk {'print $1'}; done))
 
-  local kill_time=$(date +%s%3N)
 
   if [ "$killtype" = "single" ]; then
     #Kill par 0 at the requested depth
@@ -94,27 +93,26 @@ function perform_failures() {
     local index_to_kill=$((depth_to_kill * p + par_to_kill))
     local taskmanager_to_kill=${taskmanagers_used[$index_to_kill]}
     kill_taskmanager "$taskmanager_to_kill"
+    local kill_time=$(date +%s%3N)
     echo "$taskmanager_to_kill $depth_to_kill $par_to_kill $kill_time" >>"$path"/killtime
   elif [ "$killtype" = "concurrent" ]; then
     #Iterate Depths, killing one at each depth at  roughly same time
-    for kdi in $(#TODO, might have to change this to d_start d_end
-      seq 1 "$d"
-    ); do
+    for kdi in $(seq 1 $d); do
       par_to_kill=0
       index_to_kill=$((kdi * p + par_to_kill))
       local taskmanager_to_kill=${taskmanagers_used[$index_to_kill]}
       kill_taskmanager "$taskmanager_to_kill"
+      local kill_time=$(date +%s%3N)
       echo "$taskmanager_to_kill $kdi $par_to_kill $kill_time" >>"$path"/killtime
     done
   elif [ "$killtype" = "multiple" ]; then
     #Iterate Depths, killing one random task at each depth and sleeping between
-    for kdi in $(#TODO, might have to change this to d_start d_end
-      seq 1 "$d"
-    ); do
-      par_to_kill=$((RANDOM % $p))
+    for kdi in $(seq 1 $d); do
+      par_to_kill=$((RANDOM % p))
       index_to_kill=$((kdi * p + par_to_kill))
       local taskmanager_to_kill=${taskmanagers_used[$index_to_kill]}
       kill_taskmanager "$taskmanager_to_kill"
+      local kill_time=$(date +%s%3N)
       echo "$taskmanager_to_kill $kdi $par_to_kill $kill_time" >>"$path"/killtime
       sleep $SLEEP_BETWEEN_RANDOM_KILLS
     done
@@ -136,6 +134,21 @@ function get_job_id() {
   echo $jobid
 }
 
+function get_latest_job_id() {
+  local jobids=($(curl -sS -X GET "http://$FLINK_ADDR/jobs" | jq ".jobs[].id" | tr -d '"'))
+  ts_first=$(curl -sS -X GET "http://$FLINK_ADDR/jobs/${jobids[0]}" | jq '.timestamps.CREATED')
+  ts_second=$(curl -sS -X GET "http://$FLINK_ADDR/jobs/${jobids[1]}" | jq '.timestamps.CREATED')
+
+  result=""
+  if [ $ts_first ] >$ts_second; then
+    result=${jobids[0]}
+  else
+    result=${jobids[1]}
+  fi
+
+  echo $result
+}
+
 function start_data_generators() {
   duration_seconds=$1
   throughput=$2
@@ -145,8 +158,8 @@ function start_data_generators() {
   size=${#ips[@]}
   num_prod_tot=$(($NUM_PRODUCERS_PER_HOST * $size + $NUM_PRODUCERS_PER_HOST)) #+NUM_PRODUCERS_PER_HOST for the local machine
 
-  throughput_per_prod=$(( throughput / num_prod_tot ))
-  num_records_per_prod=$(( throughput_per_prod * duration_seconds ))
+  throughput_per_prod=$((throughput / num_prod_tot))
+  num_records_per_prod=$((throughput_per_prod * duration_seconds))
   echo "Num Producers: $num_prod_tot"
   echo "Requested throughput: $throughput"
   echo "Throughput per prod: $throughput_per_prod"
@@ -155,7 +168,7 @@ function start_data_generators() {
   #Start local producers
   prodindex=0
   for i in $(seq $NUM_PRODUCERS_PER_HOST); do
-    timeout $duration_seconds /home/ubuntu/kafka/bin/kafka-producer-perf-test.sh --dist-producer-index $prodindex --dist-producer-total $num_prod_tot --topic $INPUT_TOPIC --num-records $num_records_per_prod --throughput $throughput_per_prod --producer-props bootstrap.servers=$KAFKA_EXTERNAL_ADDR key.serializer=org.apache.kafka.common.serialization.StringSerializer value.serializer=org.apache.kafka.common.serialization.StringSerializer > /dev/null &
+    timeout $duration_seconds ./kafka/bin/kafka-producer-perf-test.sh --dist-producer-index $prodindex --dist-producer-total $num_prod_tot --topic $INPUT_TOPIC --num-records $num_records_per_prod --throughput $throughput_per_prod --producer-props bootstrap.servers=$KAFKA_EXTERNAL_ADDR key.serializer=org.apache.kafka.common.serialization.StringSerializer value.serializer=org.apache.kafka.common.serialization.StringSerializer >/dev/null &
     prodindex=$((prodindex + 1))
   done
 

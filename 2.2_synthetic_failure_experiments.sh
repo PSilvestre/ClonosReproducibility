@@ -27,7 +27,7 @@ D_SS=100000000                                                          #State s
 D_AS=0.0001                                                             #Access State - Percentage of Records which access and mutate state
 D_KEYS="10000"                                                          #Number of keys each partition will process (each key will hold SS/KEYS state size)
 D_P=5                                                                   #Parallelism of each layer
-D_D=5                                                                   #Depth - Number of layers or tasks, not counting sources and sinks
+D_D=3                                                                   #Depth - Number of layers or tasks, not counting sources and sinks
 D_SHFL="true"                                                           #Shuffle connections or fully data-parallel
 D_O="map"                                                               #Operator type: "map" or "window".
 D_W_SIZE=1000                                                           #Window Size (Only if operator is window)
@@ -40,15 +40,15 @@ D_GEN_SER="false"                                                       #Generat
 
 
 #DISABLED OPTIONS
-    #NOTE: Graph-only (D_GO) and Transactional (D_T) should be left as is,
-    # as this version of the script has been stripped of the extra functionality needed for them.
+#NOTE: Graph-only (D_GO) and Transactional (D_T) should be left as is,
+# as this version of the script has been stripped of the extra functionality needed for them.
 D_T="false"                                                             #Uses transactional exactly-once delivery semantics
 D_GO="false"                                                            #Does not use kafka, instead source operators generate data
 
 #Experiment time settings
 JOB_WARM_UP_TIME=30                                                     #How long to let the system warm-up
-MEASUREMENT_DURATION=120                                                #Total time to measure the systems throughput or latency
-FAILURE_FREE_RUN_TIME=30                                                #How long into MEASUREMENT_DURATION is the kill performed
+MEASUREMENT_DURATION=200                                                #Total time to measure the systems throughput or latency
+FAILURE_FREE_RUN_TIME=50                                                #How long into MEASUREMENT_DURATION is the kill performed
 TOTAL_EXPERIMENT_TIME=$((JOB_WARM_UP_TIME + MEASUREMENT_DURATION))      #Total time the system will run (the time data producers have to be active)
 SLEEP_AFTER_KILL=$((MEASUREMENT_DURATION - FAILURE_FREE_RUN_TIME + 10)) #How long after killing we should keep measuring
 SLEEP_BETWEEN_RANDOM_KILLS=5
@@ -92,8 +92,8 @@ run_synthetic_job() {
   data_str+="--experiment-determinant-sharing-depth $dsd --experiment-shuffle $shuffle "
   data_str+="--experiment-overhead-measurement $D_GO --target-throughput $throughput "
   data_str+="--experiment-time-setter-interval $pti --num-keys-per-partition $keys "
-  data_str+="--bootstrap.servers $KAFKA_BOOTSTRAP_ADDR  --experiment-gen-ts $gen_ts --experiment-gen-random $gen_random"
-  data_str+=" --experiment-gen-serializable $gen_serializable \"}"
+  data_str+="--bootstrap.servers $KAFKA_BOOTSTRAP_ADDR  --experiment-gen-ts $gen_ts --experiment-gen-random $gen_random "
+  data_str+="--experiment-gen-serializable $gen_serializable \"}"
 
   local response=$(curl -sS -X POST --header "Content-Type: application/json;charset=UTF-8" --data "$data_str" "http://$FLINK_ADDR/jars/$jarid/run?allowNonRestoredState=false")
   echo "RUN: $response" >&2
@@ -105,45 +105,40 @@ run_synthetic_job() {
 
 start_synthetic_failure_experiment() {
   local path=$1
-  mkdir -p "$path"
-  shift 1
-  local jobstr=$1
-  shift 1
+  local jobstr=$2
 
   IFS=";" read -r -a params <<<"${jobstr}"
 
   local system="${params[0]}"
   local throughput="${params[1]}"
+  local killtype="${params[6]}"
+  local kd="${params[7]}"
   local p="${params[12]}"
-
-  topic_partitions="$p" #Number of topic partitions should = source/sink operator parallelism for best performance.
-  clear_kafka_topics $topic_partitions
-  reset_flink_cluster $num_nodes_needed
+  local d="${params[13]}"
 
   id=$(push_job_jar synthetic_workload_$system)
 
-  start_distributed_producers $TOTAL_EXPERIMENT_TIME $throughput
+  start_data_generators $TOTAL_EXPERIMENT_TIME $throughput
   echo "$throughput" > $path/input-throughput
 
   sleep 3 #Allow producers to begin producing data
 
   local jobid=$(run_synthetic_job "$id" "$jobstr")
+  echoinfo "ID of job under measurement: $jobid"
 
   sleep $JOB_WARM_UP_TIME
-
   #System is warmed-up. Begin measuring end-to-end throughput and latency.
   #Then, sleep until it is time to perform failures
 
-  local resolution=$((throughput / 5 + 1))
-  local resolution=$(echo "${resolution%.*}")
-  LATENCY_MEASUREMENTS_PER_SECOND=3
-  python3 end_to_end_latency_measurer.py -k $KAFKA_EXTERNAL_ADDR -o $OUTPUT_TOPIC -r $resolution -p $p -d $MEASUREMENT_DURATION -mps $LATENCY_MEASUREMENTS_PER_SECOND -t $D_T >$path/latency &
-
-  python3 ./throughput_measurer.py $MEASUREMENT_DURATION 3 $KAFKA_EXTERNAL_ADDR $OUTPUT_TOPIC verbose >$path/throughput &
-
+  LATENCY_MEASUREMENTS_PER_SECOND=5
+  THROUGHPUT_MEASUREMENTS_PER_SECOND=5
+  python3 end_to_end_latency_measurer.py -k $KAFKA_EXTERNAL_ADDR -o $OUTPUT_TOPIC -p $p -d $MEASUREMENT_DURATION -mps $LATENCY_MEASUREMENTS_PER_SECOND --synthetic  >$path/latency 2>/dev/null &
+  python3 ./throughput_measurer.py $MEASUREMENT_DURATION $THROUGHPUT_MEASUREMENTS_PER_SECOND $KAFKA_EXTERNAL_ADDR $OUTPUT_TOPIC verbose >$path/throughput 2>/dev/null &
   sleep $FAILURE_FREE_RUN_TIME
 
   perform_failures "$jobid" "$path" $d $p $kd $killtype
 
-  sleep $SLEEP_AFTER_KILL
+  sleep $(( SLEEP_AFTER_KILL + 20 ))
+  mkdir -p $path/logs
+  for i in $(docker ps -a |  awk '{print $1}') ; do docker logs $i > $path/logs/$i ; done
 }
