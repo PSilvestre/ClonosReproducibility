@@ -54,6 +54,13 @@ function get_vertex_host() {
 }
 
 function reset_flink_cluster() {
+  local system=$1
+  if [ "$system" = "flink" ]; then
+    export SYSTEM_CONTAINER_IMG=$FLINK_IMG
+  else
+    export SYSTEM_CONTAINER_IMG=$CLONOS_IMG
+  fi
+
   echoinfo "Resetting infrastructure for new experiment."
   if [ "$REMOTE" = "0" ]; then
     $(cd ./compose && docker-compose down -v 2>/dev/null && docker-compose up -d --scale taskmanager=$NUM_TASKMANAGERS_REQUIRED 2>/dev/null)
@@ -180,4 +187,39 @@ function start_data_generators() {
     done
   done
 
+}
+
+# =============== Changing configs =======================
+
+declare -A SYSTEM_TO_FAILOVER_STRATEGY
+SYSTEM_TO_FAILOVER_STRATEGY["flink"]="full"
+SYSTEM_TO_FAILOVER_STRATEGY["clonos"]="standbytask"
+
+function set_config_value() {
+  config=$1
+  value=$2
+  if [ "$REMOTE" = "0" ]; then
+    sed -i "s/$config:.*/$config: $value/g" ./compose/flink-conf.yaml
+  else
+    TODO=1 #TODO
+  fi
+}
+
+function set_failover_strategy() {
+  local system=$1
+  strategy=${SYSTEM_TO_FAILOVER_STRATEGY[$system]}
+  set_config_value "jobmanager.execution.failover-strategy"  "$strategy"
+}
+
+function set_number_of_standbys() {
+  num=$1
+  set_config_value "jobmanager.execution.num-standby-tasks" $num
+}
+
+
+function set_heartbeat() {
+  interval=$1
+  timeout=$2
+  set_config_value "heartbeat.interval" $interval
+  set_config_value "heartbeat.timeout" $timeout
 }
