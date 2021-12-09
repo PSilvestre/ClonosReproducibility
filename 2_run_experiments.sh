@@ -43,16 +43,18 @@ echo -e "SYSTEM\tQUERY\tPARALLELISM\tDSD\tNUM_EVENTS\tTHROUGHPUT" >>$overhead_pa
 max_par=$(echo "${EXPERIMENT_TO_PARALLELISM[@]}" | tr " " "\n" | sort | tail -n1)
 NUM_TASKMANAGERS_REQUIRED=$((max_par * 6 * 2)) # MAX_PAR * MAX_DEPTH * 2 (standby tasks)
 
+
 for system in "flink" "clonos"; do
   set_failover_strategy $system
-
   # Source nexmark testing scripts
   . ./2.1_nexmark_experiments.sh
 
   echo -e "----------------------------- Starting Nexmark Overhead Experiments -------------------------------"
-  $(cd ./beam && git checkout clonos-runner &>/dev/null)
+  change_beam_branch "clonos-runner"
   set_number_of_standbys 0
   set_heartbeat 20000 200000 #Reduces flakyness of tests because no failures should happen (No false positive failure detections).
+
+  redeploy_flink_cluster $system
 
   for query in 1 2 3 4 5 6 7 8 9 11 12 13 14; do
     num_events=${QUERY_TO_NUM_EVENTS[$query]}
@@ -76,9 +78,10 @@ for system in "flink" "clonos"; do
   done
 
   echo -e "----------------------------- Starting Nexmark Failure Experiments --------------------------------"
-  $(cd ./beam && git checkout clonos-runner-failure-experiments >/dev/null 2>&1)
+  change_beam_branch "clonos-runner-failure-experiments"
   set_number_of_standbys 1
   set_heartbeat 4000 6000
+  redeploy_flink_cluster $system
   reset_flink_cluster $system
   clear_kafka_topics 1
 
@@ -106,8 +109,6 @@ for system in "flink" "clonos"; do
 
   echo -e "---------------------------- Starting Synthetic Failure Experiments -------------------------------"
 
-  set_number_of_standbys 1
-  set_heartbeat 4000 6000
   #For synthetic failure experiments, we simply do two configurations (multiple and concurrent failures) using the default parameters.
   #See file below to find definitions of each parameter
   . ./2.2_synthetic_failure_experiments.sh

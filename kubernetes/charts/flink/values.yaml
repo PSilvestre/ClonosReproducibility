@@ -1,25 +1,27 @@
-image: flink
+image: psylvan/flink
 imageTag: latest
-imagePullPolicy: Always
+imagePullPolicy: IfNotPresent
 
 resources:
   jobmanager:
     limits:
-      cpu: 1000m
-      memory: 1280Mi
+      cpu: 4000m
+      memory: 4096Mi
     requests:
-      cpu: 1000m
-      memory: 1280Mi
+      cpu: 4000m
+      memory: 4096Mi
   taskmanager:
     limits:
-      memory: 1280Mi
+      cpu: 1000m
+      memory: 1024Mi
     requests:
-      memory: 1280Mi
+      cpu: 1000m
+      memory: 1024Mi
 
 flink:
-  jobmanager_heap_mb: 1024
+  jobmanager_heap_mb: 4096
   taskmanager_heap_mb: 1024
-  num_taskmanagers: 1
+  num_taskmanagers: 150
   num_slots_per_taskmanager: 1
 
   ## Other config options for flink-conf.yaml

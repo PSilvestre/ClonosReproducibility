@@ -34,9 +34,9 @@
 
 #web.timeout: 100
 
-jobmanager.execution.failover-strategy: standbytask
+jobmanager.execution.failover-strategy: full
 
-jobmanager.execution.num-standby-tasks: 0
+jobmanager.execution.num-standby-tasks: 1
 
 taskmanager.inflight.type: spillable
 taskmanager.inflight.spill.policy: availability

@@ -9,12 +9,12 @@ if [ "$REMOTE" = "0" ]; then
   KAFKA_EXTERNAL_ADDR=172.17.0.1:9092
   ZK_ADDR=localhost:2181
 else
-  FLINK_ADDR=0.0.0.0:31234
+  COORD_IP=$(kubectl get nodes -o wide | grep "coordinator" | awk '{print $6}')
+  FLINK_ADDR="$COORD_IP:31234"
   KAFKA_BOOTSTRAP_ADDR=$(kubectl get svc | grep ClusterIP | grep kafka | grep -v headless | awk {'print $3'}):9092
-  NODE_EXTERNAL_IP=$(ip addr show eth0 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)
   KAFKA_PORT=31090
-  KAFKA_EXTERNAL_ADDR=$NODE_EXTERNAL_IP:$KAFKA_PORT
-  ZK_ADDR=$(kubectl get svc | grep ClusterIP | grep zookeeper | grep -v headless | awk {'print $3'}):2181
+  KAFKA_EXTERNAL_ADDR="$COORD_IP:$KAFKA_PORT"
+  ZK_ADDR="$COORD_IP:32180"
 fi
 
 function clear_kafka_topics() {
@@ -57,16 +57,37 @@ function reset_flink_cluster() {
   local system=$1
   if [ "$system" = "flink" ]; then
     export SYSTEM_CONTAINER_IMG=$FLINK_IMG
+    local SYSTEM_CONTAINER_IMG=$FLINK_IMG
   else
     export SYSTEM_CONTAINER_IMG=$CLONOS_IMG
+    local SYSTEM_CONTAINER_IMG=$CLONOS_IMG
   fi
 
-  echoinfo "Resetting infrastructure for new experiment."
+  echoinfo "Resetting $system for new experiment."
   if [ "$REMOTE" = "0" ]; then
     $(cd ./compose && docker-compose down -v 2>/dev/null && docker-compose up -d --scale taskmanager=$NUM_TASKMANAGERS_REQUIRED 2>/dev/null)
   else
-    kubectl delete pod $(kubectl get pods | grep flink | awk {'print $1'})
+    kubectl delete pod $(kubectl get pods | grep flink | awk {'print $1'})>/dev/null 2>&1
   fi
+}
+
+function redeploy_flink_cluster() {
+   local system=$1
+   if [ "$system" = "flink" ]; then
+     export SYSTEM_CONTAINER_IMG=$FLINK_IMG
+     local SYSTEM_CONTAINER_IMG=$FLINK_IMG
+   else
+     export SYSTEM_CONTAINER_IMG=$CLONOS_IMG
+     local SYSTEM_CONTAINER_IMG=$CLONOS_IMG
+   fi
+
+   if [ "$REMOTE" = "1" ]; then
+     echoinfo "Redeploying $system with new configuration for next experiments"
+     sed -i "s#image:.*#image: $SYSTEM_CONTAINER_IMG#g" ./kubernetes/charts/flink/values.yaml
+     helm delete sps >/dev/null 2>&1
+     sleep 10
+     helm install sps ./kubernetes/charts/flink/ >/dev/null 2>&1
+   fi
 }
 
 function kill_taskmanager() {
@@ -174,10 +195,13 @@ function start_data_generators() {
 
   #Start local producers
   prodindex=0
-  for i in $(seq $NUM_PRODUCERS_PER_HOST); do
-    timeout $duration_seconds ./kafka/bin/kafka-producer-perf-test.sh --dist-producer-index $prodindex --dist-producer-total $num_prod_tot --topic $INPUT_TOPIC --num-records $num_records_per_prod --throughput $throughput_per_prod --producer-props bootstrap.servers=$KAFKA_EXTERNAL_ADDR key.serializer=org.apache.kafka.common.serialization.StringSerializer value.serializer=org.apache.kafka.common.serialization.StringSerializer >/dev/null &
-    prodindex=$((prodindex + 1))
-  done
+
+  if [ "$size" = "0" ] ; then # Only use local producer when no generators provided
+    for i in $(seq $NUM_PRODUCERS_PER_HOST); do
+      timeout $duration_seconds ./kafka/bin/kafka-producer-perf-test.sh --dist-producer-index $prodindex --dist-producer-total $num_prod_tot --topic $INPUT_TOPIC --num-records $num_records_per_prod --throughput $throughput_per_prod --producer-props bootstrap.servers=$KAFKA_EXTERNAL_ADDR key.serializer=org.apache.kafka.common.serialization.StringSerializer value.serializer=org.apache.kafka.common.serialization.StringSerializer >/dev/null &
+      prodindex=$((prodindex + 1))
+    done
+  fi
 
   #If there are external producers, we start them now.
   for ip in ${ips[@]}; do
@@ -201,7 +225,7 @@ function set_config_value() {
   if [ "$REMOTE" = "0" ]; then
     sed -i "s/$config:.*/$config: $value/g" ./compose/flink-conf.yaml
   else
-    TODO=1 #TODO
+    sed -i "s/$config:.*/$config: $value/g" ./kubernetes/charts/flink/templates/configmap-flink.yaml
   fi
 }
 
@@ -222,4 +246,9 @@ function set_heartbeat() {
   timeout=$2
   set_config_value "heartbeat.interval" $interval
   set_config_value "heartbeat.timeout" $timeout
+}
+
+function change_beam_branch() {
+  branch=$1
+  $(cd ./beam && git checkout $branch &>/dev/null)
 }

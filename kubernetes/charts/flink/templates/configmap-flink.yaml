@@ -10,19 +10,20 @@ data:
     jobmanager.rpc.address: {{ template "fullname" . }}-jobmanager
     jobmanager.rpc.port: 6123
     jobmanager.heap.mb: {{ .Values.flink.jobmanager_heap_mb }}
-    jobmanager.execution.failover-strategy: {{ .Values.flink.fo_strategy }}
+    jobmanager.execution.failover-strategy: full
+
+    taskmanager.heap.mb: {{ .Values.flink.taskmanager_heap_mb }}
+    taskmanager.heap.size: {{ .Values.flink.taskmanager_heap_mb }}
+    taskmanager.numberOfTaskSlots: {{ .Values.flink.num_slots_per_taskmanager }}
+
 
     state.backend: rocksdb
     state.checkpoints.dir: hdfs://hadoop-hadoop-hdfs-nn.default.svc.cluster.local:9000/checkpoints/
     state.backend.incremental: true
     state.backend.async: true
-
-    taskmanager.heap.mb: {{ .Values.flink.taskmanager_heap_mb }}
-    taskmanager.heap.size: {{ .Values.flink.taskmanager_heap_mb }}
-    taskmanager.numberOfTaskSlots: {{ .Values.flink.num_slots_per_taskmanager }}
     state.checkpoints.num-retained: 1
 
-    jobmanager.execution.num-standby-tasks: 1
+    jobmanager.execution.num-standby-tasks: 0
     jobmanager.execution.checkpoint-coordinator-backoff-mult: 3
     jobmanager.execution.checkpoint-coordinator-backoff-base: 15000
 
@@ -50,8 +51,8 @@ data:
     state.backend.rocksdb.localdir: /opt/flink/rocks/chk
     taskmanager.tmp.dirs: /opt/flink/rocks/tmp
 
-    heartbeat.interval: 4000
-    heartbeat.timeout: 6000
+    heartbeat.interval: 20000
+    heartbeat.timeout: 200000
 
     taskmanager.network.request-backoff.initial: 500
     taskmanager.network.request-backoff.max: 100000

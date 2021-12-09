@@ -3,19 +3,18 @@
 PRE_FLIGHT=0
 
 REMOTE=0
-REMOTE_ADDR=""
 
 DATA_GENERATOR_IPS=""
 
 BUILD_DOCKER_IMAGES_FROM_SRC=1
 
-CLONOS_IMG="psylvan/clonos_test" #TODO rebuild and reupload images. Change this.
+CLONOS_IMG="psylvan/clonos"
 FLINK_IMG="psylvan/flink"
 
 function usage() {
   echo "Clonos Reproducibility:"
   echo -e "\t -p \t\t\t - Uses [p]re-built images of Flink and Clonos. Skips building docker images from artifact source (They should be identical)."
-  echo -e "\t -r [user@ip] \t\t - Run experiments [r]emotely on Kubernetes cluster whose master node is provided. Need passwordless ssh into the machine."
+  echo -e "\t -r \t\t\t - Run experiments [r]emotely on Kubernetes. ~/.kube/config needs to be set-up"
   echo -e "\t -g [semi-colon separated list of user@IP which can be ssh'ed into] \t\t - Uses the provided hosts as data-[g]enerators for synthetic tests."
   echo -e "\t\t\t\t\t\t Requires password-less SSH. Each host must have the kafka directory in their home. Most likely not needed."
   echo -e "\t -c \t\t\t - Confirms you have completed the pre-flight [c]hecks."
@@ -35,8 +34,8 @@ function pre_flight_check() {
   echo -e "\t\t\t Docker now unfortunately limits image downloads. To ensure no problems, a Docker account with sufficient daily image pulls (https://www.docker.com/pricing) can be created as the free plan may hit its limits."
   echo -e "\t\t\t Once an account (free or not) is created, create a Kubernetes service account so the cluster uses this identity to pull images:"
   echo -e "\t\t\t\t\t\t 1. docker login"
-  echo -e "\t\t\t\t\t\t 2. kubectl create secret generic pubregcred --from-file=.dockerconfigjson=<path/to/.docker/config.json> --type=kubernetes.io/dockerconfigjson"
-  echo -e "\t\t\t\t\t\t 3. Place the resulting file in the 'kubernetes' directory of this project"
+  echo -e "\t\t\t\t\t\t 2. kubectl create secret generic pubregcred --from-file=.dockerconfigjson=</absolute/path/to/.docker/config.json> --type=kubernetes.io/dockerconfigjson"
+  echo -e "\t\t\t\t\t\t This will create a resource of type secret in the cluster named pubregcred, which can be used to authenticate image pulls"
   echo -e ""
   echo -e "Call this script again using the -c flag to certify you have completed the pre-flight check."
 }
@@ -49,7 +48,7 @@ echoerr() {
 echoinfo() { echo "INFO: $@"; }
 
 function parse_inputs() {
-  optstring=":hpr:g:c"
+  optstring=":hprg:c"
 
   while getopts ${optstring} arg; do
     case ${arg} in
@@ -63,12 +62,11 @@ function parse_inputs() {
       ;;
     r)
       REMOTE=1
-      REMOTE_ADDR="$OPTARG"
-      echoinfo "-r supplied, running experiments remotely at $REMOTE_ADDR."
+      echoinfo "-r supplied, running experiments remotely."
       ;;
     g)
       DATA_GENERATOR_IPS="$OPTARG"
-      echoinfo "-g supplied, using nodes \"$generators\" as data generators."
+      echoinfo "-g supplied, using nodes \"$DATA_GENERATOR_IPS\" as data generators."
       ;;
     c)
       PRE_FLIGHT=1
@@ -97,18 +95,15 @@ if [ ! -d "./venv" ]; then
   echoinfo "Setting up python venv."
   python3 -m venv ./venv
   source venv/bin/activate
-  pip3 install matplotlib numpy pandas oca confluent_kafka
+  pip3 install matplotlib numpy pandas confluent_kafka
+  #Cant install from pypi repositories as it contains old version which is broken
+  pip install git+https://github.com/python-oca/python-oca
 
 else
   echoinfo "Activating existing python venv."
   source venv/bin/activate
 fi
 
-# PLAN ==================
-# 2. Then, try to do the kubernetes deployments.
-# Copy kube config from remote machine.
-# 3. Then, try to do the build process
-# 3. Then, SurfSara deployments.
 
 if [ "$BUILD_DOCKER_IMAGES_FROM_SRC" == 1 ]; then
   # Clone repositories & build
@@ -125,14 +120,21 @@ fi
 
 
 if [ "$REMOTE" = "1" ]; then
+
   # Needed for helm to function
-  kubectl apply -f ./kubernetes/rbac-config.yaml
+  kubectl apply -f ./kubernetes/rbac-config.yaml >/dev/null 2>&1
 
-  echoinfo "Creating Kubernetes service account."
-  kubectl apply -f ./kubernetes/pubregcred.yaml
-  kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "pubregcred"}]}'
+  echoinfo "Creating Kubernetes service account." >/dev/null 2>&1
+  #kubectl apply -f ./kubernetes/pubregcred.yaml
+  kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "pubregcred"}]}' >/dev/null 2>&1
 
-  #TODO do remaining set-up of local state
+  # At this point we can go ahead and set-up the infrastructure (Kafka and Hadoop) if running on Kubernetes.
+  helm install hadoop ./kubernetes/charts/hadoop >/dev/null 2>&1
+  helm install confluent ./kubernetes/charts/cp-helm-charts >/dev/null 2>&1
+
+  echoinfo "Setting up HDFS and Kafka for experiments. Sleeping 60 sec."
+  sleep 60
+
 fi
 
 date=$(date +%Y-%m-%d_%H:%M)
@@ -145,6 +147,6 @@ echoinfo "Experiments completed."
 echoinfo "Generating experiment graphs in $path_prefix."
 python3 generate_figures.py "$path_prefix" "$path_prefix/images"
 
-#TODO compile paper with new images
 cp $path_prefix/images/*.pdf ./paper_source/Figures
 cd ./paper_source && make all
+echoinfo "Finished, you can find the recompiled paper in ./paper_source/hastreaming.pdf. Experimental results are at $path_prefix and graphs are at $path_prefix/images."

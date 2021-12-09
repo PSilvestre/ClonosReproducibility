@@ -8,9 +8,9 @@ spec:
   accessModes:
   - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: local-storage-large
+  storageClassName: local-storage-<$storage_type>
   local:
-    path: /media/extra/<$num>
+    path: /media/extra/<$dir_id>
   nodeAffinity:
    required:
      nodeSelectorTerms:
