@@ -167,7 +167,6 @@ function start_nexmark_overhead_experiment() {
 
   args=$(build_args $jobstr "overhead")
 
-  #bash -c "cd ./beam && ./gradlew :sdks:java:testing:nexmark:run -Pnexmark.runner=\":runners:$system:1.7\" -Pnexmark.args=\"$args\" "
   results=$(bash -c "cd ./beam && ./gradlew :sdks:java:testing:nexmark:run -Pnexmark.runner=\":runners:$system:1.7\" -Pnexmark.args=\"$args\" 2>&1 ")
 
   measured_throughput=$(echo "$results" | grep 0000 | grep -v 'query' | grep -v 'event' | tail -n1 | awk '{print $3}')
