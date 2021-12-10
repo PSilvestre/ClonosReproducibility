@@ -1,3 +1,4 @@
+#!/bin/bash
 INPUT_TOPIC="benchmark-input"
 OUTPUT_TOPIC="benchmark-output"
 

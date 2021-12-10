@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #Load functionality shared by all experiments
 . experiments_shared_code.sh
 
