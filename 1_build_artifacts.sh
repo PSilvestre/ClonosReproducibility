@@ -14,7 +14,7 @@ if [ ! -d "./Clonos" ]; then
   git clone https://github.com/delftdata/Clonos >/dev/null 2>&1
   echoinfo "Building Clonos using Maven"
   pushd ./Clonos > /dev/null 2>&1
-  mvn install -DskipTests -Dcheckstyle.skip >/dev/null 2>&1
+  mvn clean install -DskipTests -Dcheckstyle.skip >/dev/null 2>&1
 
   echoinfo "Building docker image for Clonos named: $CLONOS_IMG"
   jar_loc="./flink-contrib/docker-flink/beam-jars"
@@ -30,7 +30,7 @@ if [ ! -d "./Clonos" ]; then
   echoinfo "Switching to Flink branch"
   git checkout flink1.7 >/dev/null 2>&1
   echoinfo "Building Flink using Maven"
-  mvn install -DskipTests -Dcheckstyle.skip >/dev/null 2>&1
+  mvn clean install -DskipTests -Dcheckstyle.skip >/dev/null 2>&1
 
   echoinfo "Building docker image for Flink named: $FLINK_IMG"
   jar_loc="./flink-contrib/docker-flink/beam-jars"
