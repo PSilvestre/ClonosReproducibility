@@ -1,11 +1,17 @@
-# Clonos (SIGMOD 2021) Reproducibility (ID: rdm517)
+# Clonos SIGMOD'21 Reproducibility
 
-[Reproducibility Repository Link](https://github.com/PSilvestre/ClonosReproducibility)
+<img src="https://delftdata.github.io/clonos-web/clonos-web-logo.png" width=50% height=50%>
 
-This repository contains information on how to reproduce the experiments in the SIGMOD'21 paper 
-"Clonos: Consistent Causal Recovery for Highly-Available Streaming Dataflows". DOI: 10.1145/3448016.3457320, ID: rdm517
+## Basic Identifiers
+* **Title**: "Clonos: Consistent Causal Recovery for Highly-Available Streaming Dataflows"
+* **Authors**: Pedro F. Silvestre, Marios Fragkoulis, Diomidis Spinellis, Asterios Katsifodimos
+* **Paper ID**: rdm517
+* **DOI**: 10.1145/3448016.3457320
+* **ACM Digital Library**: [Link](https://dl.acm.org/doi/abs/10.1145/3448016.3457320)
+* **Reproducibility Repository**: [Clonos Reproducibility Repository Link](https://github.com/PSilvestre/ClonosReproducibility)
 
-Our original experiments were executed on the private SurfSara cluster.
+This PDF is also the README.md of the above Reproducibility Repository. It may be more readable (e.g syntax highlighting) on GitHub.
+
 This is a difficult paper to reproduce due to the sheer number of dependencies and distributed components required (Stream processor, HDFS, Kafka, Zookeeper, Data Stream Generators and more).
 To ease this, we execute our experiments on a virtualized environment on top of Kubernetes.
 
@@ -22,26 +28,24 @@ We provide the requested README format below.
 
 ### A) Source code info
 
-| :warning: WARNING          |
-|:---------------------------|
-| There is no need to download any repository other than the reproducibility one. The reproducibility scripts should perform all the heavy lifting.      |
+:warning: *There is no need to clone any repository other than the reproducibility one. The reproducibility scripts should perform all the heavy lifting.*
 
-Repositories:
+**Repositories:**
 * [Clonos Source Code](https://github.com/delftdata/Clonos) - The source code of the Clonos System. Branch 'flink1.7' contains the version of Flink we tested against.
 
-Programming Languages:
+**Programming Languages:**
 * Main System: Java
 * Workloads: Java (BEAM NEXMark), Scala (Synthetic)
 * Testing scripts: Bash (orchestration), Python (Figures, latency and throughput measurers)
 
-Additional Programming Language info: Java8
+**Additional Programming Language info:** Java8
 
-Compiler Info: openjdk version "1.8.0_292"
+**Compiler Info:** openjdk version "1.8.0_292"
 
-Packages/Libraries Needed: To build the system, maven will download all dependencies automatically. 
-Dependencies (See below for a breakdown): java8, python3 (with pip and virtualenv), gradle 4<, make, pdflatex, bibtex, git, maven 3.2.5, docker, docker-compose, kubectl, helm
+**Packages/Libraries Needed:** To build the system, maven will download all dependencies automatically. 
+**Dependencies** (See below for a breakdown): java8, python3 (with pip and virtualenv), gradle 4<, make, pdflatex, bibtex, git, maven 3.2.5, docker, docker-compose, kubectl, helm
 
-Breakdown:
+**Breakdown:**
 * General: java8, python3 (with pip and virtualenv), gradle 4<, make, pdflatex, bibtex
 * If building containers from source (DEFAULT): git, maven 3.2.5
 * If local experiments (DEFAULT): docker, docker-compose
@@ -49,11 +53,9 @@ Breakdown:
 
 ### B) Datasets info
 
-| :warning: WARNING          |
-|:---------------------------|
-| There is no need to download any repository other than the reproducibility one. The reproducibility scripts should perform all the heavy lifting.      |
+:warning: *There is no need to clone any repository other than the reproducibility one. The reproducibility scripts should perform all the heavy lifting.*
 
-Data generators Repository: 
+**Data generators Repository:**
 * [BEAM w\ ClonosRunner](https://github.com/delftdata/beam) - Used in the NEXMark experiments. Branches clonos-runner and clonos-runner-failure-experiments are used respectively in overhead and failure experiments.
 * [Synthetic workload](https://github.com/delftdata/flink-test-scripts) - Contains the synthetic workload source code and our custom measuring (throughput and latency) scripts.
 
