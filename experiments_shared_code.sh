@@ -169,7 +169,7 @@ function get_latest_job_id() {
   ts_second=$(curl -sS -X GET "http://$FLINK_ADDR/jobs/${jobids[1]}" | jq '.timestamps.CREATED')
 
   result=""
-  if [ $ts_first ] >$ts_second; then
+  if [ $ts_first  > $ts_second ]; then
     result=${jobids[0]}
   else
     result=${jobids[1]}
