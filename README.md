@@ -69,14 +69,15 @@ git clone https://github.com/PSilvestre/ClonosReproducibility
 cd ./ClonosReproducibility
 ./0_workflow.sh -c -p -s <password> 
 ```
-Once finished the script will print a message similar to this:
+Once finished the script will print a message similar to this, which you should follow:
 
 ```
 Done. You can now ssh into the machine at ubuntu@$IP.
 You can launch experiments by doing the folowing:
     1. ssh ubuntu@$IP
     2. cd ClonosProvisioning
-    3. ./0_workflow.sh -c -p -r -g $DATA_GENERATOR_IPS
+    3. nohup ./0_workflow.sh -c -p -r -g $DATA_GENERATOR_IPS & #use nohup to prevent hangups
+    4. tail -f nohup.out
 ```
 
 ### Provision a cluster, execute remote experiments with images built from source
@@ -98,7 +99,8 @@ Done. You can now ssh into the machine at ubuntu@$IP.
 You can launch experiments by doing the folowing:
     1. ssh ubuntu@$IP
     2. cd ClonosProvisioning
-    3. ./0_workflow.sh -c -p -r -g $DATA_GENERATOR_IPS
+    3. nohup ./0_workflow.sh -c -p -r -g $DATA_GENERATOR_IPS &
+    4. tail -f nohup.out
 ```
 
 Follow these instructions, but before executing the 0_workflow.sh script, edit the variables FLINK_IMG and CLONOS_IMG

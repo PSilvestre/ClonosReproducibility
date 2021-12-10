@@ -144,9 +144,11 @@ if [ "$PROVISION" = "1" ]; then
     kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "pubregcred"}]}' >/dev/null 2>&1
 
     echoinfo "Done. You can now ssh into the machine at ubuntu@$IP."
-    echoinfo "Once there, you can launch experiments by doing the folowing:"
-    echoinfo "\t 1. cd ClonosProvisioning"
-    echoinfo "\t 2. ./0_workflow.sh -c -p -r -g $DATA_GENERATOR_IPS"
+    echoinfo "You can launch experiments by doing the folowing:"
+    echoinfo "\t 1. ssh ubuntu@$IP "
+    echoinfo "\t 2. cd ClonosReproducibility"
+    echoinfo "\t 3. nohup ./0_workflow.sh -c -p -r -g $DATA_GENERATOR_IPS & # We use nohup to prevent hangups from SSH"
+    echoinfo "\t 4. tail -f nohup.out # Follow the output of the script"
     echoinfo "\t You may omit -p in order to build new Clonos and Flink docker images from scratch, but this will be wasteful of the remaining cluster resources. Furthermore, the images will be identical."
     echoinfo "Exiting..."
     exit
