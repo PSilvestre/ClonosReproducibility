@@ -71,11 +71,11 @@ We will work from bottom to top, describing our deployments for each layer.
 #### Bare-Metal
 At the bare-metal layer, we execute on SurfSara gold_6130 nodes. Their information is as follows:
 
-C1) Processor: [Intel® Xeon® Gold 6130 Processor](https://ark.intel.com/content/www/us/en/ark/products/120492/intel-xeon-gold-6130-processor-22m-cache-2-10-ghz.html) (architecture, type, and number of processors/sockets)
-C2) Caches: L1: 16 x 32 KB 8-way set associative instruction caches + 16 x 32 KB 8-way set associative data caches , L2: 16 x 1 MB 16-way set associative caches, L3: 22 MB non-inclusive shared cache
-C3) Memory: 96 GB UPI 10.4 GT/s
-C4) Secondary Storage: 3.2 TB local SSD disk 
-C5) Network: 10 Gbit/s ethernet
+* C1) Processor: [Intel® Xeon® Gold 6130 Processor](https://ark.intel.com/content/www/us/en/ark/products/120492/intel-xeon-gold-6130-processor-22m-cache-2-10-ghz.html)
+* C2) Caches: L1: 16 x 32 KB 8-way set associative instruction caches + 16 x 32 KB 8-way set associative data caches , L2: 16 x 1 MB 16-way set associative caches, L3: 22 MB non-inclusive shared cache
+* C3) Memory: 96 GB UPI 10.4 GT/s
+* C4) Secondary Storage: 3.2 TB local SSD disk 
+* C5) Network: 10 Gbit/s ethernet
 
 Additional hardware information about the SurfSara cluster may be found
 [here](https://servicedesk.surfsara.nl/wiki/display/WIKI/HPC+Cloud+documentation) and [here](https://servicedesk.surfsara.nl/wiki/display/WIKI/Lisa+hardware+and+file+systems).
