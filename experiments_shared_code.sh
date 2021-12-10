@@ -68,7 +68,6 @@ function reset_flink_cluster() {
     $(cd ./compose && docker-compose down -v 2>/dev/null && docker-compose up -d --scale taskmanager=$NUM_TASKMANAGERS_REQUIRED 2>/dev/null)
   else
     kubectl delete pod $(kubectl get pods | grep flink | awk {'print $1'})>/dev/null 2>&1
-
   fi
 }
 
@@ -234,6 +233,11 @@ function set_failover_strategy() {
   local system=$1
   strategy=${SYSTEM_TO_FAILOVER_STRATEGY[$system]}
   set_config_value "jobmanager.execution.failover-strategy"  "$strategy"
+}
+
+function set_sensitive_failure_detection() {
+  local val=$1
+  set_config_value "taskmanager.network.netty.enableSensitiveFailureDetection"  "$val"
 }
 
 function set_number_of_standbys() {

@@ -106,7 +106,7 @@ if [ ! -d "./venv" ]; then
   pip3 install wheel >/dev/null 2>&1
   pip3 install matplotlib numpy pandas confluent_kafka >/dev/null 2>&1
   #Cant install from pypi repositories as it contains old version which is broken
-  pip3 install git+https://github.com/python-oca/python-oca
+  pip3 install git+https://github.com/python-oca/python-oca >/dev/null 2>&1
 
 else
   echoinfo "Activating existing python venv."
@@ -133,6 +133,7 @@ if [ "$PROVISION" = "1" ]; then
     echoinfo "Copying Kubeconfig to local computer."
     scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$IP:~/.kube/config ~/.kube/config  >/dev/null 2>&1
     echoinfo "Setting up local storage on the cluster. This will also take a few minutes."
+    sleep 60
     pushd ./kubernetes >/dev/null 2>&1
     python3 setup_local_storage.py
     popd >/dev/null 2>&1

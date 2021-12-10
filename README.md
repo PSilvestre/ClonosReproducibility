@@ -135,7 +135,8 @@ We will now show a series of scenarios and how the script may be used.
 ```bash
 git clone https://github.com/PSilvestre/ClonosReproducibility
 cd ./ClonosReproducibility
-# You will probably want to lower the parallelism by editing the associative array EXPERIMENT_TO_PARALLELISM in 2_run_experiments.sh
+# You will probably want to lower the parallelism by editing the 
+# associative array EXPERIMENT_TO_PARALLELISM in 2_run_experiments.sh
 # It is unlikely that a parallelism of 25 will fit in any one server.
 ./0_workflow.sh -p -c
 # -p specifies prebuilt, omission of -r assumes local.
@@ -146,7 +147,8 @@ cd ./ClonosReproducibility
 docker login
 git clone https://github.com/PSilvestre/ClonosReproducibility
 cd ./ClonosReproducibility
-# You will probably want to lower the parallelism by editing the associative array EXPERIMENT_TO_PARALLELISM in 2_run_experiments.sh
+# You will probably want to lower the parallelism by editing the
+# associative array EXPERIMENT_TO_PARALLELISM in 2_run_experiments.sh
 # It is unlikely that a parallelism of 25 will fit in any one server.
 ./0_workflow.sh -c
 # omission of -p assumes build from source, omission of -r assumes local.

@@ -11,37 +11,20 @@ SURF_USERNAME = "delta"
 
 # NOTE There is a limit of 2048 GB Disk for surf sara group
 defaults = {
-   "coordinator_cpu": 8,
-   "coordinator_memory": 16 * 1024,
-   "coordinator_disk": 5 * 1024,
+    "coordinator_cpu": 8,
+    "coordinator_memory": 16 * 1024,
+    "coordinator_disk": 20 * 1024,
 
-   "follower_cpu": 40,
-   "follower_memory": 60 * 1024,
-   "follower_disk": 100 * 1024,
+    "follower_cpu": 40,
+    "follower_memory": 60 * 1024,
+    "follower_disk": 100 * 1024,
 
-   "num_followers": 6,
-
-   "generator_cpu": 4,
-   "generator_memory": 4 * 1024,
-
-   "num_generators": 2
-}
-
-test = {
-    "coordinator_cpu": 5,
-    "coordinator_memory": 8 * 1024,
-    "coordinator_disk": 32 * 1024,
-
-    "follower_cpu": 10,
-    "follower_memory": 10 * 1024,
-    "follower_disk": 35 * 1024,
-
-    "num_followers": 2,
+    "num_followers": 6,
 
     "generator_cpu": 4,
     "generator_memory": 4 * 1024,
 
-    "num_generators": 0
+    "num_generators": 2
 }
 
 
@@ -119,7 +102,6 @@ def exec_create_followers(args, client):
         oca.vm.VirtualMachine.allocate(client, follower_template)
 
 
-
 def exec_create_coordinator(args, client):
     coordinator_template = read_template(args, "./Coordinator.def")
     coordinator_id = oca.vm.VirtualMachine.allocate(client, coordinator_template)
@@ -140,7 +122,6 @@ def main():
     exec_create_coordinator(args, client)
     exec_create_followers(args, client)
     exec_create_generators(args, client)
-
 
 
 if __name__ == "__main__":

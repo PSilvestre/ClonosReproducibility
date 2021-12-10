@@ -62,7 +62,8 @@ def setup_storage(nodenames):
 
 
 def main():
-    nodenames = get_kube_nodes()
+    #nodenames = get_kube_nodes()
+    nodenames = ["kubernetes-follower-10dcfc7f-5df6-4fcd-81e1-898060f86e4a", "kubernetes-follower-3ae96c17-43ca-4a43-9150-624256cfbbc2", "kubernetes-follower-f4cdfc1a-edef-4174-8a53-256b9b4bde04"]
     setup_storage(nodenames)
 
 

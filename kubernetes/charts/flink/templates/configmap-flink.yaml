@@ -29,23 +29,24 @@ data:
 
     taskmanager.inflight.type: spillable
     taskmanager.inflight.spill.policy: availability
-    taskmanager.inflight.spill.availability-trigger: 0.3
+    taskmanager.inflight.spill.availability-trigger: 0.4
     taskmanager.inflight.spill.num-prefetch-buffers: 10
     taskmanager.inflight.spill.sleep: 50
-    taskmanager.network.memory.sender-extra-buffers-per-channel: 10
-    taskmanager.network.memory.sender-extra-floating-buffers-per-gate: 2000
+    taskmanager.network.memory.sender-extra-buffers-per-channel: 25
+    taskmanager.network.memory.sender-extra-floating-buffers-per-gate: 500
 
     taskmanager.network.memory.fraction: 0.45
-    taskmanager.network.netty.determinantMemorySteal: 0.5
+    taskmanager.network.netty.determinantMemorySteal: 0.3
     taskmanager.network.netty.determinantBufferSize: 8192
     taskmanager.network.netty.determinantBuffersPerJob: 9000
     taskmanager.network.netty.enableDeltaEncodingStrategy: true
     taskmanager.network.netty.determinantDeltaEncodingStrategy: hierarchical 
-    
+
+    taskmanager.network.netty.enableSensitiveFailureDetection: false
     metrics.latency.history-size: 5
     metrics.latency.granularity: single
 
-    taskmanager.memory.fraction: 0.5
+    taskmanager.memory.fraction: 0.7
     taskmanager.network.memory.buffers-per-channel: 2
     taskmanager.network.memory.floating-buffers-per-gate: 8
     state.backend.rocksdb.localdir: /opt/flink/rocks/chk

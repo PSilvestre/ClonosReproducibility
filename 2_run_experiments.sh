@@ -52,6 +52,7 @@ for system in "clonos" "flink" ; do
   echo -e "----------------------------- Starting Nexmark Overhead Experiments -------------------------------"
   change_beam_branch "clonos-runner"
   set_number_of_standbys 0
+  set_sensitive_failure_detection "false"
   set_heartbeat 20000 200000 #Reduces flakyness of tests because no failures should happen (No false positive failure detections).
 
   redeploy_flink_cluster $system
@@ -86,6 +87,7 @@ for system in "clonos" "flink" ; do
   change_beam_branch "clonos-runner-failure-experiments"
   set_number_of_standbys 1
   set_heartbeat 4000 6000
+  set_sensitive_failure_detection "true"
   redeploy_flink_cluster $system
   reset_flink_cluster $system
   clear_kafka_topics 1

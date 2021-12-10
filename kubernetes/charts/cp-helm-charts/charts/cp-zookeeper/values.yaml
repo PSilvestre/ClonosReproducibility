@@ -46,7 +46,7 @@ autoPurgeSnapRetainCount: 3
 autoPurgePurgeInterval: 24
 
 ## Zookeeper JVM Heap Option
-heapOptions: "-Xms512M -Xmx512M"
+heapOptions: "-Xms500M -Xmx500M"
 
 ## Port
 ## ref: https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_configuration
@@ -73,17 +73,17 @@ persistence:
 
 ## Pod Compute Resources
 ## ref: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
-resources: {}
+resources:
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
   # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  #  limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  #  requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+    limits:
+     cpu: 500m
+     memory: 512Mi
+    requests:
+     cpu: 500m
+     memory: 512Mi
 
 ## Custom pod annotations
 podAnnotations: {}

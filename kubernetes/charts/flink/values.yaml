@@ -13,7 +13,7 @@ resources:
   taskmanager:
     limits:
       cpu: 2000m
-      memory: 1524Mi
+      memory: 2000Mi
     requests:
       cpu: 1000m
       memory: 1524Mi
