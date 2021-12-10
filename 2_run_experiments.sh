@@ -44,7 +44,7 @@ max_par=$(echo "${EXPERIMENT_TO_PARALLELISM[@]}" | tr " " "\n" | sort | tail -n1
 NUM_TASKMANAGERS_REQUIRED=$((max_par * 6 * 2)) # MAX_PAR * MAX_DEPTH * 2 (standby tasks)
 
 
-for system in "flink" "clonos"; do
+for system in "clonos" "flink" ; do
   set_failover_strategy $system
   # Source nexmark testing scripts
   . ./2.1_nexmark_experiments.sh
@@ -62,11 +62,16 @@ for system in "flink" "clonos"; do
     if [ "$system" = "clonos" ]; then
       #If the system is Clonos, run two configurations full DSD and one DSD
       for dsd in "-1" "1"; do
+
+        start=`date +%s`
         reset_flink_cluster $system
         clear_kafka_topics $par
         echoinfo "Starting configuration: SYS:$system;Q:$query;PAR:$par;CI:$D_CI;NE:$num_events;DSD:$dsd;PTI:$D_PTI_CLONOS"
         jobstr="$system;$query;$par;$D_CI;$num_events;$dsd;$D_PTI_CLONOS"
         start_nexmark_overhead_experiment $jobstr $overhead_path
+        end=`date +%s`
+        runtime=$((end-start))
+        echoinfo "Experiment took $runtime seconds total."
       done
     elif [ "$system" = "flink" ]; then
       reset_flink_cluster $system

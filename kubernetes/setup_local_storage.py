@@ -38,7 +38,7 @@ def setup_storage(nodenames):
     subprocess.check_call("kubectl apply -f ./charts/storage-large.yaml", shell=True, stdout=open(os.devnull, 'wb'),
                           close_fds=True)
 
-    num_pvs_per_type = {"coordinator": {"small": 4, "large": 0}, "follower": {"small": 150, "large": 32}}
+    num_pvs_per_type = {"coordinator": {"small": 4, "large": 0}, "follower": {"small": 100, "large": 32}}
 
     storage_size = {"small": 8000, "large": 55000}
 

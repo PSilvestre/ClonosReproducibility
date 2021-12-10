@@ -1,7 +1,12 @@
 #!/bin/bash
 
 #Limit Gradle Mem usage
-export GRADLE_OPTS="-Xmx512m -Dorg.gradle.jvmargs='-Xmx2048m -XX:MaxPermSize=512m'"
+if [ "$REMOTE" = 0 ] ; then
+  #Try to save memory when running experiments locally.
+  export GRADLE_OPTS="-Xmx256m -Dorg.gradle.jvmargs='-Xmx1024m -XX:MaxPermSize=256m'"
+else
+  export GRADLE_OPTS="-Xmx1024m -Dorg.gradle.jvmargs='-Xmx4096m -XX:MaxPermSize=1024m'"
+fi
 
 # Checkpoint every 10 seconds
 D_CI=5000
@@ -138,6 +143,11 @@ function start_nexmark_failure_experiment() {
   perform_failures "$jobid" "$path" 0 $p $kd "single"
 
   sleep $SLEEP_AFTER_KILL
+
+  cancel_job $jobid
+  sleep 5
+  local prod_jobid=$(get_job_id)
+  cancel_job $prod_jobid
 }
 
 
@@ -159,7 +169,7 @@ function start_nexmark_overhead_experiment() {
 
   #bash -c "cd ./beam && ./gradlew :sdks:java:testing:nexmark:run -Pnexmark.runner=\":runners:$system:1.7\" -Pnexmark.args=\"$args\" "
   results=$(bash -c "cd ./beam && ./gradlew :sdks:java:testing:nexmark:run -Pnexmark.runner=\":runners:$system:1.7\" -Pnexmark.args=\"$args\" 2>&1 ")
-  echoinfo "$results"
+
   measured_throughput=$(echo "$results" | grep 0000 | grep -v 'query' | grep -v 'event' | tail -n1 | awk '{print $3}')
   echoinfo "Q$q Throughput: $measured_throughput"
   echo -e "$system\t$q\t$p\t$dsd\t$ne\t$measured_throughput" >> $path

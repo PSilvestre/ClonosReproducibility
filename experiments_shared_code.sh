@@ -67,7 +67,7 @@ function reset_flink_cluster() {
   if [ "$REMOTE" = "0" ]; then
     $(cd ./compose && docker-compose down -v 2>/dev/null && docker-compose up -d --scale taskmanager=$NUM_TASKMANAGERS_REQUIRED 2>/dev/null)
   else
-    kubectl delete pod $(kubectl get pods | grep flink | awk {'print $1'})>/dev/null 2>&1
+    kubectl delete pod $(kubectl get pods | grep flink | grep taskmanager | awk {'print $1'})>/dev/null 2>&1
   fi
 }
 
@@ -87,6 +87,7 @@ function redeploy_flink_cluster() {
      helm delete sps >/dev/null 2>&1
      sleep 10
      helm install sps ./kubernetes/charts/flink/ >/dev/null 2>&1
+     sleep 30
    fi
 }
 
@@ -157,8 +158,7 @@ function push_job_jar() {
 }
 
 function get_job_id() {
-  local index=$1
-  local jobid=$(curl -sS -X GET "http://$FLINK_ADDR/jobs" | jq ".jobs[$index].id" | tr -d '"')
+  local jobid=$(curl -sS -X GET "http://$FLINK_ADDR/jobs" | jq ".jobs[0].id" | tr -d '"')
   echo $jobid
 }
 
@@ -175,6 +175,12 @@ function get_latest_job_id() {
   fi
 
   echo $result
+}
+
+function cancel_job() {
+  local jobid=$(get_job_id)
+  curl -sS -X PATCH "http://$FLINK_ADDR/jobs/$jobid?mode=cancel" >/dev/null
+  sleep 3
 }
 
 function start_data_generators() {

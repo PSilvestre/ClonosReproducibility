@@ -3,6 +3,7 @@
 PRE_FLIGHT=0
 
 REMOTE=0
+PROVISION=0
 
 DATA_GENERATOR_IPS=""
 
@@ -17,6 +18,7 @@ function usage() {
   echo -e "\t -r \t\t\t - Run experiments [r]emotely on Kubernetes. ~/.kube/config needs to be set-up"
   echo -e "\t -g [semi-colon separated list of user@IP which can be ssh'ed into] \t\t - Uses the provided hosts as data-[g]enerators for synthetic tests."
   echo -e "\t\t\t\t\t\t Requires password-less SSH. Each host must have the kafka directory in their home. Most likely not needed."
+  echo -e "\t -s [password] \t\t - Provision a cluster for experiments from [S]urfSara. Password must be requested to the authors. Will assume remote (-r) experiments."
   echo -e "\t -c \t\t\t - Confirms you have completed the pre-flight [c]hecks."
   echo -e "\t -h \t\t\t - shows [h]elp."
 }
@@ -31,11 +33,9 @@ function pre_flight_check() {
   echo -e ""
   echo -e "Testing distributed data-intensive systems at scale is complicated. We have tried to automate it as much as possible, but some work is still required if using Kubernetes (-r option):"
   echo -e "\t\t\t Ensure you have a deployed cluster with enough capacity and copied the kube config to your local machine (~/.kube/config)."
+  echo -e "\t\t\t\t\t This can be achieved in the following way: scp ubuntu@<coordinator-ip>:~/.kube/config ~/.kube/config"
   echo -e "\t\t\t Docker now unfortunately limits image downloads. To ensure no problems, a Docker account with sufficient daily image pulls (https://www.docker.com/pricing) can be created as the free plan may hit its limits."
-  echo -e "\t\t\t Once an account (free or not) is created, create a Kubernetes service account so the cluster uses this identity to pull images:"
-  echo -e "\t\t\t\t\t\t 1. docker login"
-  echo -e "\t\t\t\t\t\t 2. kubectl create secret generic pubregcred --from-file=.dockerconfigjson=</absolute/path/to/.docker/config.json> --type=kubernetes.io/dockerconfigjson"
-  echo -e "\t\t\t\t\t\t This will create a resource of type secret in the cluster named pubregcred, which can be used to authenticate image pulls"
+  echo -e "\t\t\t Once an account (free or not) is created, use 'docker login' on your local machine. Our scripts tell the cluster to pull images using this identity."
   echo -e ""
   echo -e "Call this script again using the -c flag to certify you have completed the pre-flight check."
 }
@@ -48,7 +48,7 @@ echoerr() {
 echoinfo() { echo "INFO: $@"; }
 
 function parse_inputs() {
-  optstring=":hprg:c"
+  optstring=":hprs:g:c"
 
   while getopts ${optstring} arg; do
     case ${arg} in
@@ -67,6 +67,12 @@ function parse_inputs() {
     g)
       DATA_GENERATOR_IPS="$OPTARG"
       echoinfo "-g supplied, using nodes \"$DATA_GENERATOR_IPS\" as data generators."
+      ;;
+    s)
+      PROVISION=1
+      REMOTE=1
+      PASSWORD="$OPTARG"
+      echoinfo "-s supplied, will provision cluster for experiments."
       ;;
     c)
       PRE_FLIGHT=1
@@ -104,12 +110,10 @@ else
   source venv/bin/activate
 fi
 
-
 if [ "$BUILD_DOCKER_IMAGES_FROM_SRC" == 1 ]; then
   # Clone repositories & build
   . 1_build_artifacts.sh
 fi
-
 
 if [ ! -d "./beam" ]; then
   echoinfo "Cloning Clonos' Beam implementation for NEXMARK experiments"
@@ -118,23 +122,33 @@ else
   echoinfo "Skipping git clone of beam because directory already present."
 fi
 
-
 if [ "$REMOTE" = "1" ]; then
+  if [ "$PROVISION" = "1" ]; then
+    echoinfo "Provisioning cluster from SurfSara. This can take up to 15 minutes."
+    OUT=($(cd ./surf_sara_provision && python provision.py -pw $PASSWORD))
+    IP=${OUT[0]}
+    DATA_GENERATOR_IPS=${OUT[1]}
+    echoinfo "Copying Kubeconfig"
+    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$IP:~/.kube/config ~/.kube/config  >/dev/null 2>&1
+    echoinfo "Setting up local storage on the cluster. This will also take a few minutes."
+    pushd ./kubernetes >/dev/null 2>&1
+    python setup_local_storage.py
+    popd >/dev/null 2>&1
+  fi
 
+  path_to_docker_config="$HOME/.docker/config.json"
+  kubectl create secret generic pubregcred --from-file=.dockerconfigjson=$path_to_docker_config --type=kubernetes.io/dockerconfigjson >/dev/null 2>&1
   # Needed for helm to function
   kubectl apply -f ./kubernetes/rbac-config.yaml >/dev/null 2>&1
 
-  echoinfo "Creating Kubernetes service account." >/dev/null 2>&1
-  #kubectl apply -f ./kubernetes/pubregcred.yaml
+  echoinfo "Creating Kubernetes service account."
   kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "pubregcred"}]}' >/dev/null 2>&1
 
   # At this point we can go ahead and set-up the infrastructure (Kafka and Hadoop) if running on Kubernetes.
   helm install hadoop ./kubernetes/charts/hadoop >/dev/null 2>&1
   helm install confluent ./kubernetes/charts/cp-helm-charts >/dev/null 2>&1
 
-  echoinfo "Setting up HDFS and Kafka for experiments. Sleeping 60 sec."
-  sleep 60
-
+  echoinfo "Setting up HDFS and Kafka for experiments."
 fi
 
 date=$(date +%Y-%m-%d_%H:%M)

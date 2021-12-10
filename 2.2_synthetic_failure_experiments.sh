@@ -138,7 +138,7 @@ start_synthetic_failure_experiment() {
 
   perform_failures "$jobid" "$path" $d $p $kd $killtype
 
-  sleep $(( SLEEP_AFTER_KILL + 20 ))
-  mkdir -p $path/logs
-  for i in $(docker ps -a |  awk '{print $1}') ; do docker logs $i > $path/logs/$i ; done
+  sleep $(( SLEEP_AFTER_KILL + 10 ))
+
+  cancel_job $jobid
 }

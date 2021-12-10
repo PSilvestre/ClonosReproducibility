@@ -10,7 +10,7 @@ data:
     jobmanager.rpc.address: {{ template "fullname" . }}-jobmanager
     jobmanager.rpc.port: 6123
     jobmanager.heap.mb: {{ .Values.flink.jobmanager_heap_mb }}
-    jobmanager.execution.failover-strategy: full
+    jobmanager.execution.failover-strategy: standbytask
 
     taskmanager.heap.mb: {{ .Values.flink.taskmanager_heap_mb }}
     taskmanager.heap.size: {{ .Values.flink.taskmanager_heap_mb }}

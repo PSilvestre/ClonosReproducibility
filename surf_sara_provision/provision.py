@@ -11,15 +11,15 @@ SURF_USERNAME = "delta"
 
 # NOTE There is a limit of 2048 GB Disk for surf sara group
 defaults = {
-   "coordinator_cpu": 4,
-   "coordinator_memory": 8 * 1024,
+   "coordinator_cpu": 8,
+   "coordinator_memory": 16 * 1024,
    "coordinator_disk": 5 * 1024,
 
-   "follower_cpu": 50,
-   "follower_memory": 80 * 1024,
-   "follower_disk": 150 * 1024,
+   "follower_cpu": 40,
+   "follower_memory": 60 * 1024,
+   "follower_disk": 100 * 1024,
 
-   "num_followers": 4,
+   "num_followers": 6,
 
    "generator_cpu": 4,
    "generator_memory": 4 * 1024,
@@ -98,8 +98,19 @@ def read_template(args, template_path):
 def exec_create_generators(args, client):
     generator_template = read_template(args, "./Generator.def")
 
+    ids = []
     for i in range(args["num_generators"]):
-        oca.vm.VirtualMachine.allocate(client, generator_template)
+        id = oca.vm.VirtualMachine.allocate(client, generator_template)
+        ids.append(id)
+    time.sleep(60 * 5)
+    ips = []
+    for id in ids:
+        vm = oca.VirtualMachine.new_with_id(client, id)
+        vm.info()
+        ip = vm.template.nics[0].ip
+        ips.append("ubuntu@" + str(ip))
+
+    print(";".join(ips))
 
 
 def exec_create_followers(args, client):
@@ -108,17 +119,17 @@ def exec_create_followers(args, client):
         oca.vm.VirtualMachine.allocate(client, follower_template)
 
 
+
 def exec_create_coordinator(args, client):
     coordinator_template = read_template(args, "./Coordinator.def")
     coordinator_id = oca.vm.VirtualMachine.allocate(client, coordinator_template)
 
-    print("Sleeping 8 minutes to allow Coordinator to initialize.")
-    time.sleep(60 * 8)
+    time.sleep(60 * 5)
 
     coordinator = oca.VirtualMachine.new_with_id(client, coordinator_id)
     coordinator.info()
     coordinator_ip = coordinator.template.nics[0].ip
-    print(f"Coordinator IP: {str(coordinator_ip)}")
+    print(str(coordinator_ip))
 
 
 def main():
@@ -130,8 +141,6 @@ def main():
     exec_create_followers(args, client)
     exec_create_generators(args, client)
 
-    print("Sleeping five minutes to allow Followers and Data Generators to initialize.")
-    time.sleep(60 * 5)
 
 
 if __name__ == "__main__":
