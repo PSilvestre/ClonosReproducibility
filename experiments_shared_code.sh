@@ -167,9 +167,11 @@ function get_latest_job_id() {
   local jobids=($(curl -sS -X GET "http://$FLINK_ADDR/jobs" | jq ".jobs[].id" | tr -d '"'))
   ts_first=$(curl -sS -X GET "http://$FLINK_ADDR/jobs/${jobids[0]}" | jq '.timestamps.CREATED')
   ts_second=$(curl -sS -X GET "http://$FLINK_ADDR/jobs/${jobids[1]}" | jq '.timestamps.CREATED')
+  vertex_ids_one=($(get_job_vertexes ${jobids[0]}))
+  vertex_ids_two=($(get_job_vertexes ${jobids[1]}))
 
   result=""
-  if [ $ts_first  > $ts_second ]; then
+  if [ $ts_first  -gt $ts_second ]; then
     result=${jobids[0]}
   else
     result=${jobids[1]}
