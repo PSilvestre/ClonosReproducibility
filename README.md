@@ -1,18 +1,119 @@
 # Clonos (SIGMOD 2021) Reproducibility (ID: rdm517)
 
+[Reproducibility Repository Link](https://github.com/PSilvestre/ClonosReproducibility)
+
 This repository contains information on how to reproduce the experiments in the SIGMOD'21 paper 
 "Clonos: Consistent Causal Recovery for Highly-Available Streaming Dataflows". DOI: 10.1145/3448016.3457320, ID: rdm517
 
 Our original experiments were executed on the private SurfSara cluster.
-This is a difficult paper to reproduce due to the number of distributed components required (Stream processor, HDFS, Kafka, Zookeeper, Data Stream Generators and more).
+This is a difficult paper to reproduce due to the sheer number of dependencies and distributed components required (Stream processor, HDFS, Kafka, Zookeeper, Data Stream Generators and more).
 To ease this, we execute our experiments on a virtualized environment on top of Kubernetes.
 
 We have attempted to make it as easy as possible to reproduce. Two options are available:
 * Local testing: much simpler, but less accurate to our experiments. Uses docker-compose on a large scale-up machine.
 * Remote testing: requires a Kubernetes cluster with certain specifications. We have included scripts to provision such a cluster, but the cluster password must be requested.
 
-Our scripts can also automatically pull the Clonos repository, build it using maven and package it into a docker image if desired.
+Our scripts can also automatically pull and build the Clonos repository, packaging it into a docker image which can be used in the experiments.
 To speed up this process we also provide pre-built images, which will be identical to the resulting build.
+
+We provide the requested README format below.
+
+## Requested README Format
+
+### A) Source code info
+
+| :warning: WARNING          |
+|:---------------------------|
+| There is no need to download any repository other than the reproducibility one. The reproducibility scripts should perform all the heavy lifting.      |
+
+Repositories:
+* [Clonos Source Code](https://github.com/delftdata/Clonos) - The source code of the Clonos System. Branch 'flink1.7' contains the version of Flink we tested against.
+
+Programming Languages:
+* Main System: Java
+* Workloads: Java (BEAM NEXMark), Scala (Synthetic)
+* Testing scripts: Bash (orchestration), Python (Figures, latency and throughput measurers)
+
+Additional Programming Language info: Java8
+
+Compiler Info: openjdk version "1.8.0_292"
+
+Packages/Libraries Needed: To build the system, maven will download all dependencies automatically. 
+Dependencies (See below for a breakdown): java8, python3 (with pip and virtualenv), gradle 4<, make, pdflatex, bibtex, git, maven 3.2.5, docker, docker-compose, kubectl, helm
+
+Breakdown:
+* General: java8, python3 (with pip and virtualenv), gradle 4<, make, pdflatex, bibtex
+* If building containers from source (DEFAULT): git, maven 3.2.5
+* If local experiments (DEFAULT): docker, docker-compose
+* If remote experiments (-r): kubectl, helm
+
+### B) Datasets info
+
+| :warning: WARNING          |
+|:---------------------------|
+| There is no need to download any repository other than the reproducibility one. The reproducibility scripts should perform all the heavy lifting.      |
+
+Data generators Repository: 
+* [BEAM w\ ClonosRunner](https://github.com/delftdata/beam) - Used in the NEXMark experiments. Branches clonos-runner and clonos-runner-failure-experiments are used respectively in overhead and failure experiments.
+* [Synthetic workload](https://github.com/delftdata/flink-test-scripts) - Contains the synthetic workload source code and our custom measuring (throughput and latency) scripts.
+
+### C) Hardware Info
+
+Our experiments are executed on 2 layers of virtualization. At the bottom we represent bare-metal:
+1. Docker containers (managed by Kubernetes)
+2. HPCCloud VirtualMachines
+3. SurfSara cluster bare-metal nodes.
+
+We will work from bottom to top, describing our deployments for each layer.
+
+#### Bare-Metal
+At the bare-metal layer, we execute on SurfSara gold_6130 nodes. Their information is as follows:
+
+C1) Processor: [Intel® Xeon® Gold 6130 Processor](https://ark.intel.com/content/www/us/en/ark/products/120492/intel-xeon-gold-6130-processor-22m-cache-2-10-ghz.html) (architecture, type, and number of processors/sockets)
+C2) Caches: L1: 16 x 32 KB 8-way set associative instruction caches + 16 x 32 KB 8-way set associative data caches , L2: 16 x 1 MB 16-way set associative caches, L3: 22 MB non-inclusive shared cache
+C3) Memory: 96 GB UPI 10.4 GT/s
+C4) Secondary Storage: 3.2 TB local SSD disk 
+C5) Network: 10 Gbit/s ethernet
+
+Additional hardware information about the SurfSara cluster may be found
+[here](https://servicedesk.surfsara.nl/wiki/display/WIKI/HPC+Cloud+documentation) and [here](https://servicedesk.surfsara.nl/wiki/display/WIKI/Lisa+hardware+and+file+systems).
+
+#### Virtual Machines
+
+On top of this Hardware we request the following Virtual Machines
+* 1 Coordinator Node (hosts Kubernetes Coordinator)
+  * 8vCPU
+  * 16GB memory
+  * 50GB Disk
+* 6 Follower Nodes (Kubernetes Followers)
+  * 40vCPU
+  * 60GB memory
+  * 100GB Disk
+* 2 Generator Nodes (Data Generators for Synthetic Failure Experiments)
+  * 4vCPU
+  * 4GB memory
+  * 5GB Disk
+
+#### Containers
+
+On top of the VMs we set-up Kubernetes and launch a number of components.
+Note that 500m CPU indicates 1/2 of a CPU:
+* Zookeeper: 3 nodes, 500m CPU, 512Mi memory, 5Gi Persistent Volume
+* Kafka: 5 nodes, 2000m CPU, 4000Mi memory, 50Gi Persistent Volume
+* HDFS: 
+  * 1 Namenode, 4000m CPU, 4000Mi memory, 50Gi Persistent Volume
+  * 3 Datanode, 3000m CPU, 8000Mi memory, 50Gi Persistent Volume
+* Flink:
+  * 1 JobManager, 8000m CPU, 8192Mi memory
+  * 150 TaskManager, 2000m CPU, 2000Mi memory, 5Gi Persistent Volume
+
+The ./kubernetes/charts directory contains the deployment manifests, which are a complete source-of-truth.
+
+
+### D) Experimentation Info
+
+Before starting, create a docker account and execute ```docker login```. This is required for building a pushing
+docker images. It will also be used as the identity for image pulls performed by the cluster.
 
 The main script is ```0_workflow.sh``` and it receives a number of parameters:
 | Flag | Parameter             | Description                                                                           |
@@ -24,24 +125,13 @@ The main script is ```0_workflow.sh``` and it receives a number of parameters:
 | -c | - | Confirms you have read and completed the pre-flight [c]hecks. |
 | -h | - | Shows [h]elp |
 
-## Dependencies
-
-* General: java8, python3, gradle 4<, make, pdflatex, bibtex
-* If building containers from source (DEFAULT): git, maven 3.2.5
-* If local experiments (DEFAULT): docker, docker-compose
-* If remote experiments (-r): kubectl, helm
-
-## Instructions
-
-Before starting, create a docker account and execute ```docker login```. This is required for building a pushing
-docker images. It will also be used as the identity for image pulls performed by the cluster.
-
 If performing remote experiments, email the authors requesting the password for the delta account in the SurfSara cluster.
-Alternatively, we can provision the cluster ourselves on-demand. Pedro may be reached at pmf<last-name> at gmail.com.
+Alternatively, we can provision the cluster for you ourselves on-demand. Pedro may be reached at pmf<lastName>@gmail.com.
+If necessary, we will be available to guide you through the reproduction of experiments.
 
 We will now show a series of scenarios and how the script may be used.
 
-### Local experiments with pre-built images
+#### Local experiments with pre-built images
 ```bash
 git clone https://github.com/PSilvestre/ClonosReproducibility
 cd ./ClonosReproducibility
@@ -51,7 +141,7 @@ cd ./ClonosReproducibility
 # -p specifies prebuilt, omission of -r assumes local.
 ```
 
-### Local experiments with images built from source
+#### Local experiments with images built from source
 ```bash
 docker login
 git clone https://github.com/PSilvestre/ClonosReproducibility
@@ -62,7 +152,7 @@ cd ./ClonosReproducibility
 # omission of -p assumes build from source, omission of -r assumes local.
 ```
 
-### Provision a cluster, execute remote experiments using pre-built images
+#### Provision a cluster, execute remote experiments using pre-built images
 ```bash
 docker login
 git clone https://github.com/PSilvestre/ClonosReproducibility
@@ -81,7 +171,7 @@ You can launch experiments by doing the folowing:
     5. tail -f nohup.out
 ```
 
-### Provision a cluster, execute remote experiments with images built from source
+#### Provision a cluster, execute remote experiments with images built from source
 To save on cluster resource we will first generate the docker images, then provision the cluster and then execute.
 
 ```bash
@@ -108,7 +198,7 @@ You can launch experiments by doing the folowing:
 Follow these instructions, but before executing the 0_workflow.sh script, edit the variables FLINK_IMG and CLONOS_IMG
 at the top of 0_workflow.sh to use your docker image versions.
 
-### Executing remote experiments from local computer, with images built from source
+#### Executing remote experiments from local computer, with images built from source
 You can also avoid SSH'ing into the remote host, because experiments can be launched remotely.
 However, these are likely to yield worse results and take even longer to execute.
 ```bash
@@ -124,14 +214,12 @@ cd ./ClonosReproducibility
 ./0_workflow.sh -c -r
 ```
 
-## Other repositories
+### Other Notes
 
-* Clonos: https://github.com/delftdata/Clonos
-* Beam w\ ClonosRunner: https://github.com/delftdata/beam (Used in NEXMark experiments)
-* Synthetic workload: https://github.com/delftdata/flink-test-scripts (Used in synthetic experiments)
+We decided to provide the synthetic workload as pre-built jars to ease automation efforts. 
+These are the 'synthetic_workload_clonos.jar' and 'synthetic_workload_flink.jar'
+The same could not be achieved for the beam project, and as such the dependency on Gradle remains.
 
-We decided to provide the synthetic workload as pre-built jars to ease automation efforts. These are the 'synthetic_workload_clonos.jar' and 'synthetic_workload_flink.jar'
-
-## Hardware Information
-Hardware information about the SurfSara cluster may be found 
-[here](https://servicedesk.surfsara.nl/wiki/display/WIKI/HPC+Cloud+documentation) and [here](https://servicedesk.surfsara.nl/wiki/display/WIKI/Lisa+hardware+and+file+systems).
+We thank the reproducibility reviewers for their efforts, and hope that you appreciate ours in attempting to simplify the complexity of these experiments.
+Such large scale experiments can be flaky and there may be the need to rerun certain experiments/stitch together results.
+The authors are prepared to support the reproducibility reviewers in their work. Again, Pedro may be reached at pmf<lastName>@gmail.com.
