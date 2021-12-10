@@ -76,8 +76,9 @@ Done. You can now ssh into the machine at ubuntu@$IP.
 You can launch experiments by doing the folowing:
     1. ssh ubuntu@$IP
     2. cd ClonosProvisioning
-    3. nohup ./0_workflow.sh -c -p -r -g $DATA_GENERATOR_IPS & #use nohup to prevent hangups
-    4. tail -f nohup.out
+    3. git pull # Ensure latest version
+    4. nohup ./0_workflow.sh -c -p -r -g "$DATA_GENERATOR_IPS" & #use nohup to prevent hangups
+    5. tail -f nohup.out
 ```
 
 ### Provision a cluster, execute remote experiments with images built from source
@@ -99,8 +100,9 @@ Done. You can now ssh into the machine at ubuntu@$IP.
 You can launch experiments by doing the folowing:
     1. ssh ubuntu@$IP
     2. cd ClonosProvisioning
-    3. nohup ./0_workflow.sh -c -p -r -g $DATA_GENERATOR_IPS &
-    4. tail -f nohup.out
+    3. git pull # Ensure latest version
+    4. nohup ./0_workflow.sh -c -p -r -g "$DATA_GENERATOR_IPS" &
+    5. tail -f nohup.out
 ```
 
 Follow these instructions, but before executing the 0_workflow.sh script, edit the variables FLINK_IMG and CLONOS_IMG

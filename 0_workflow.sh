@@ -42,11 +42,11 @@ function pre_flight_check() {
 }
 
 echoerr() {
-  echo "ERROR: $@" 1>&2
+  echo -e "ERROR: $@" 1>&2
   usage
 }
 
-echoinfo() { echo "INFO: $@"; }
+echoinfo() { echo -e "INFO: $@"; }
 
 function parse_inputs() {
   optstring=":hprs:g:c"
@@ -102,7 +102,9 @@ if [ ! -d "./venv" ]; then
   echoinfo "Setting up python venv."
   python3 -m venv ./venv
   source venv/bin/activate
-  pip3 install matplotlib numpy pandas confluent_kafka
+  pip3 install --upgrade pip >/dev/null 2>&1
+  pip3 install wheel >/dev/null 2>&1
+  pip3 install matplotlib numpy pandas confluent_kafka >/dev/null 2>&1
   #Cant install from pypi repositories as it contains old version which is broken
   pip3 install git+https://github.com/python-oca/python-oca
 
@@ -147,8 +149,9 @@ if [ "$PROVISION" = "1" ]; then
     echoinfo "You can launch experiments by doing the folowing:"
     echoinfo "\t 1. ssh ubuntu@$IP "
     echoinfo "\t 2. cd ClonosReproducibility"
-    echoinfo "\t 3. nohup ./0_workflow.sh -c -p -r -g $DATA_GENERATOR_IPS & # We use nohup to prevent hangups from SSH"
-    echoinfo "\t 4. tail -f nohup.out # Follow the output of the script"
+    echoinfo "\t 3. git pull # Ensure  the VM has the latest version of the reproducibility scripts"
+    echoinfo "\t 4. nohup ./0_workflow.sh -c -p -r -g \"$DATA_GENERATOR_IPS\" & # We use nohup to prevent hangups from SSH"
+    echoinfo "\t 5. tail -f nohup.out # Follow the output of the script"
     echoinfo "\t You may omit -p in order to build new Clonos and Flink docker images from scratch, but this will be wasteful of the remaining cluster resources. Furthermore, the images will be identical."
     echoinfo "Exiting..."
     exit

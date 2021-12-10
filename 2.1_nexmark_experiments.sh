@@ -144,10 +144,6 @@ function start_nexmark_failure_experiment() {
 
   sleep $SLEEP_AFTER_KILL
 
-  cancel_job $jobid
-  sleep 5
-  local prod_jobid=$(get_job_id)
-  cancel_job $prod_jobid
 }
 
 

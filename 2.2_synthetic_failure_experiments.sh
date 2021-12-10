@@ -139,6 +139,4 @@ start_synthetic_failure_experiment() {
   perform_failures "$jobid" "$path" $d $p $kd $killtype
 
   sleep $(( SLEEP_AFTER_KILL + 10 ))
-
-  cancel_job $jobid
 }
