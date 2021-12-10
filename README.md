@@ -8,19 +8,29 @@
 * **Paper ID**: rdm517
 * **DOI**: 10.1145/3448016.3457320
 * **ACM Digital Library**: [Link](https://dl.acm.org/doi/abs/10.1145/3448016.3457320)
-* **Reproducibility Repository**: [Clonos Reproducibility Repository Link](https://github.com/PSilvestre/ClonosReproducibility)
+* **Reproducibility Repository**: https://github.com/PSilvestre/ClonosReproducibility
 
 This PDF is also the README.md of the above Reproducibility Repository. It may be more readable (e.g syntax highlighting) on GitHub.
 
-This is a difficult paper to reproduce due to the sheer number of dependencies and distributed components required (Stream processor, HDFS, Kafka, Zookeeper, Data Stream Generators and more).
-To ease this, we execute our experiments on a virtualized environment on top of Kubernetes.
+## Introduction
 
-We have attempted to make it as easy as possible to reproduce. Two options are available:
+This is a difficult paper to reproduce due to the sheer number of dependencies and distributed components required (Stream processor, HDFS, Kafka, Zookeeper, Data Stream Generators and more).
+To ease this, we execute our experiments on a virtualized environment: Docker or Kubernetes.
 * Local testing: much simpler, but less accurate to our experiments. Uses docker-compose on a large scale-up machine.
 * Remote testing: requires a Kubernetes cluster with certain specifications. We have included scripts to provision such a cluster, but the cluster password must be requested.
 
-Our scripts can also automatically pull and build the Clonos repository, packaging it into a docker image which can be used in the experiments.
-To speed up this process we also provide pre-built images, which will be identical to the resulting build.
+As requested, the scripts should handle everything:
+* Downloading the source code of the systems
+* Compiling the systems
+* Producing Docker images of the systems
+* Provisioning a cluster to execute experiments on
+* Installing Kubernetes on said cluster
+* Deploying the infrastructure components on Kubernetes (HDFS, Kafka, Zookeeper, Flink and Clonos)
+* Executing the experiments and collecting results
+* Generating Figures
+* Recompiling the paper
+
+To speed up this process we also provide pre-built docker images, which will be identical to the resulting build from source.
 
 We provide the requested README format below.
 
@@ -117,7 +127,8 @@ The ./kubernetes/charts directory contains the deployment manifests, which are a
 Before starting, create a docker account and execute ```docker login```. This is required for building a pushing
 docker images. It will also be used as the identity for image pulls performed by the cluster.
 
-The main script is ```0_workflow.sh``` and it receives a number of parameters:
+The main script is ```0_workflow.sh```. By default it will execute experiments locally, using newly built docker images. 
+It receives a number of parameters which can change its behaviour:
 | Flag | Parameter             | Description                                                                           |
 | ---- | --------------------- | ------------------------------------------------------------------------------------- |
 | -p | - | Uses [p]re-built images of Flink and Clonos. Skips building docker images from artifact source.             |
@@ -219,6 +230,13 @@ cd ./ClonosReproducibility
 ```
 
 ### Other Notes
+
+Several parameters can be easily changed on all experiments. 
+Experiments are specified in 2_run_experiments.sh as a configuration string such as this:
+```
+jobstr="$system;$query;$par;$D_CI;$throughput;$D_DSD_CLONOS_FAILURE;$D_PTI_CLONOS;$kill_depth"
+```
+The second parameter specifies the Nexmark query to use, while the third parameter specifies the parallelism to use and so on...
 
 We decided to provide the synthetic workload as pre-built jars to ease automation efforts. 
 These are the 'synthetic_workload_clonos.jar' and 'synthetic_workload_flink.jar'

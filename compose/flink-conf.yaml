@@ -57,7 +57,7 @@ taskmanager.network.netty.determinantBufferSize: 16384
 taskmanager.network.netty.determinantBuffersPerJob: 2000
 taskmanager.network.netty.enableDeltaSharingOptimizations: true
 taskmanager.network.netty.determinantDeltaEncodingStrategy: hierarchical
-
+taskmanager.network.netty.enableSensitiveFailureDetection: false
 
 
 metrics.latency.granularity: single

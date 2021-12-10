@@ -96,7 +96,7 @@ function kill_taskmanager() {
   if [ "$REMOTE" = "0" ]; then
     docker kill "$taskmanager_to_kill" >/dev/null 2>&1
   else
-    kubectl delete --grace-period=0 --force pod "$taskmanager_to_kill"
+    kubectl delete pod --grace-period=0 --force "$taskmanager_to_kill"
   fi
   echo "Killed taskmanager $taskmanager_to_kill" >&2
 }
