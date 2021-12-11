@@ -154,7 +154,6 @@ def failure_throughput_compare(save_path: str, thrs: List[pd.DataFrame], killtim
         df = df.query(f"TIME > {time_range[0]} & TIME < {time_range[1]}")  # Focus on interesting area of the graph
         thrs[i] = df
 
-    # TODO generate pretty numbers...
     ymax = round(max(thrs[0]["THROUGHPUT"].max(), thrs[1]["THROUGHPUT"].max()) * 1.1, ndigits=2)
     y_ticks = arange_pretty(ymax)
     plt.ylim([y_ticks[0], y_ticks[-1]])

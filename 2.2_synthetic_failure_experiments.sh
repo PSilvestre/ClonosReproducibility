@@ -130,10 +130,10 @@ start_synthetic_failure_experiment() {
   #System is warmed-up. Begin measuring end-to-end throughput and latency.
   #Then, sleep until it is time to perform failures
 
-  LATENCY_MEASUREMENTS_PER_SECOND=5
-  THROUGHPUT_MEASUREMENTS_PER_SECOND=5
-  python3 end_to_end_latency_measurer.py -k $KAFKA_EXTERNAL_ADDR -o $OUTPUT_TOPIC -p $p -d $MEASUREMENT_DURATION -mps $LATENCY_MEASUREMENTS_PER_SECOND --synthetic  >$path/latency 2>/dev/null &
-  python3 ./throughput_measurer.py $MEASUREMENT_DURATION $THROUGHPUT_MEASUREMENTS_PER_SECOND $KAFKA_EXTERNAL_ADDR $OUTPUT_TOPIC verbose >$path/throughput 2>/dev/null &
+  LATENCY_MEASUREMENTS_PER_SECOND=3
+  THROUGHPUT_MEASUREMENTS_PER_SECOND=3
+  python3 end_to_end_latency_measurer.py -k $KAFKA_EXTERNAL_ADDR -o $OUTPUT_TOPIC -p $p -d $MEASUREMENT_DURATION -mps $LATENCY_MEASUREMENTS_PER_SECOND --synthetic  >$path/latency &
+  python3 ./throughput_measurer.py $MEASUREMENT_DURATION $THROUGHPUT_MEASUREMENTS_PER_SECOND $KAFKA_EXTERNAL_ADDR $OUTPUT_TOPIC verbose >$path/throughput &
   sleep $FAILURE_FREE_RUN_TIME
 
   perform_failures "$jobid" "$path" $d $p $kd $killtype

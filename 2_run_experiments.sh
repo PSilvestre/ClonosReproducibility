@@ -27,8 +27,8 @@ QUERY_TO_THROUGHPUT[8]=50000
 
 # Kill Depth in failure experiments. We set these such that they kill stateful operators (such as join)
 declare -A QUERY_TO_KILL_DEPTH
-QUERY_TO_KILL_DEPTH[3]=2
-QUERY_TO_KILL_DEPTH[8]=1
+QUERY_TO_KILL_DEPTH[3]=3
+QUERY_TO_KILL_DEPTH[8]=2
 
 declare -A EXPERIMENT_TO_PARALLELISM
 EXPERIMENT_TO_PARALLELISM["OVERHEAD"]=25
