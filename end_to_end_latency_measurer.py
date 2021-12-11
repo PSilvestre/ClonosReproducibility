@@ -31,9 +31,7 @@ def sample_output_topic(args):
         elapsed = current_time - last_time
         last_time = current_time
         lag += elapsed
-        while lag >= ms_per_update:
-            if current_time >= start_time + experiment_duration * 1000:
-                break
+        while lag >= ms_per_update and current_time >= start_time + experiment_duration * 1000:
             step(consumers, partition_table, topic, input_ts_in_msg)
             lag -= ms_per_update
         time.sleep((ms_per_update / 10) / 1000)

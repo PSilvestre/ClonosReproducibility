@@ -16,7 +16,7 @@ def exec_benchmark(duration_s, fps, kafka_loc, output_topic, silent):
         'group.id': 'benchmark-' + str(uuid.uuid4()),
         'auto.offset.reset': 'latest',
         'max.poll.interval.ms': 86400000,
-        'isolation.level': 'read_committed'
+        'isolation.level': 'read_uncommitted'
     })
 
     # === Get topic partitions
@@ -57,7 +57,7 @@ def exec_benchmark(duration_s, fps, kafka_loc, output_topic, silent):
         elapsed = current_time - last_time
         last_time = current_time
         lag += elapsed
-        while lag >= MS_PER_UPDATE:
+        while lag >= MS_PER_UPDATE and current_time < start_time + duration_s * 1000:
             # calc new val
             total_new = 0
             curr_time_for_print = current_milli_time()
