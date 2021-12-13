@@ -121,7 +121,7 @@ for system in "clonos" "flink" ; do
   #For synthetic failure experiments, we simply do two configurations (multiple and concurrent failures) using the default parameters.
   #See file below to find definitions of each parameter
   . ./2.2_synthetic_failure_experiments.sh
-  set_number_of_standbys 0
+  set_number_of_standbys 1
   set_heartbeat 4000 6000
   set_sensitive_failure_detection "true"
   redeploy_flink_cluster $system
