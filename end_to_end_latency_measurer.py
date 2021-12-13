@@ -14,9 +14,8 @@ def sample_output_topic(args):
     experiment_duration = int(args["duration"])
     topic = args["output_topic"]
     input_ts_in_msg = args["input_ts_in_msg"]
-    partition_table = {}
 
-    consumers = create_consumers(args, num_partitions, partition_table)
+    consumers = create_consumers(args, num_partitions)
 
     ms_per_update = 1000 / mps
 
@@ -27,31 +26,27 @@ def sample_output_topic(args):
     lag = 0.0
 
     while current_time < start_time + experiment_duration * 1000:
-        current_time = current_milli_time()
         elapsed = current_time - last_time
         last_time = current_time
         lag += elapsed
-        while lag >= ms_per_update and current_time >= start_time + experiment_duration * 1000:
-            step(consumers, partition_table, topic, input_ts_in_msg)
+        while lag >= ms_per_update:
+            step(consumers, topic, input_ts_in_msg)
             lag -= ms_per_update
         time.sleep((ms_per_update / 10) / 1000)
+        current_time = current_milli_time()
 
     for i in range(num_partitions):
-        array = partition_table[i]
-        sorted_array = sorted(array, key=lambda triplet: triplet[0])
-        partition_table[i] = sorted_array
         consumers[i].close()
-    return partition_table
 
 
-def step(consumers, partition_table, topic, input_ts_in_msg):
+def step(consumers, topic, input_ts_in_msg):
     # Get one message from each consumer
+    output = ""
     for partition, c in enumerate(consumers):
         msg = poll_next_message(c, partition, topic)
-        if msg.error():
-            continue
-        else:
-            process_message(msg, partition, partition_table, input_ts_in_msg)
+        tup = process_message(msg, input_ts_in_msg)
+        output += f"\t{tup[0]}\t{tup[1]}\t{tup[2]}\t{tup[3]}"
+    print(output.strip(), flush=True)
 
 
 def poll_next_message(c, partition, topic):
@@ -66,7 +61,7 @@ def poll_next_message(c, partition, topic):
     return msg
 
 
-def process_message(msg, partition, partition_table, input_ts_in_msg, visibility_ts=0):
+def process_message(msg, input_ts_in_msg, visibility_ts=0):
     if input_ts_in_msg:
         dict_msg = json.loads(msg.value())
         input_ts = int(dict_msg["inputTS"])
@@ -75,22 +70,20 @@ def process_message(msg, partition, partition_table, input_ts_in_msg, visibility
 
     output_ts = int(msg.timestamp()[1])
     if visibility_ts == 0:
-        partition_table[partition].append((input_ts, output_ts, visibility_ts, output_ts - input_ts))
+        return input_ts, output_ts, visibility_ts, output_ts - input_ts
     else:
-        partition_table[partition].append((input_ts, output_ts, visibility_ts, visibility_ts - input_ts))
+        return input_ts, output_ts, visibility_ts, visibility_ts - input_ts
 
 
-def create_consumers(args, num_partitions, partition_table):
+def create_consumers(args, num_partitions):
     consumers = []
     for i in range(num_partitions):
-        partition_table[i] = []
         oc = Consumer({
             'bootstrap.servers': args["kafka"],
             'group.id': str(uuid.uuid4()),
             'auto.offset.reset': 'latest',
             'api.version.request': True,
             'isolation.level': 'read_uncommitted',
-            'max.poll.interval.ms': 86400000
         })
         oc.assign([TopicPartition(args["output_topic"], i)])
         oc.poll(0.5)
@@ -101,29 +94,15 @@ def create_consumers(args, num_partitions, partition_table):
 def get_latency(args):
     num_partitions = int(args["num_partitions"])
 
-    partition_table = sample_output_topic(args)
     print_header(num_partitions)
-    print_table(num_partitions, partition_table)
-
-
-def print_table(num_partitions, partition_table):
-    num_readings = min(len(partition) for partition in partition_table.values())
-    for i in range(num_readings):
-        part0 = partition_table[0]
-        row = "{}\t{}\t{}\t{}".format(part0[i][0], part0[i][1], part0[i][2], part0[i][3])
-
-        for part in range(1, num_partitions):
-            parti = partition_table[part]
-            row += "\t{}\t{}\t{}\t{}".format(parti[i][0], parti[i][1], parti[i][2], parti[i][3])
-
-        print(row)
+    sample_output_topic(args)
 
 
 def print_header(num_partitions):
     header = "INPUT-0\tOUTPUT-0\tVISIBLE-0\tLATENCY-0"
     for i in range(1, num_partitions):
         header += "\tINPUT-{}\tOUTPUT-{}\tVISIBLE-{}\tLATENCY-{}".format(i, i, i, i)
-    print(header)
+    print(header, flush=True)
 
 
 def parse_args():

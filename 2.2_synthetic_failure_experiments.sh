@@ -132,8 +132,8 @@ start_synthetic_failure_experiment() {
 
   LATENCY_MEASUREMENTS_PER_SECOND=3
   THROUGHPUT_MEASUREMENTS_PER_SECOND=3
-  python3 end_to_end_latency_measurer.py -k $KAFKA_EXTERNAL_ADDR -o $OUTPUT_TOPIC -p $p -d $MEASUREMENT_DURATION -mps $LATENCY_MEASUREMENTS_PER_SECOND --synthetic  >$path/latency &
-  python3 ./throughput_measurer.py $MEASUREMENT_DURATION $THROUGHPUT_MEASUREMENTS_PER_SECOND $KAFKA_EXTERNAL_ADDR $OUTPUT_TOPIC verbose >$path/throughput &
+  timeout -s 9 $((MEASUREMENT_DURATION + 5)) python3 end_to_end_latency_measurer.py -k $KAFKA_EXTERNAL_ADDR -o $OUTPUT_TOPIC -p $p -d $MEASUREMENT_DURATION -mps $LATENCY_MEASUREMENTS_PER_SECOND --synthetic  >$path/latency &
+  timeout -s 9 $((MEASUREMENT_DURATION + 5)) python3 ./throughput_measurer.py $MEASUREMENT_DURATION $THROUGHPUT_MEASUREMENTS_PER_SECOND $KAFKA_EXTERNAL_ADDR $OUTPUT_TOPIC >$path/throughput &
   sleep $FAILURE_FREE_RUN_TIME
 
   perform_failures "$jobid" "$path" $d $p $kd $killtype

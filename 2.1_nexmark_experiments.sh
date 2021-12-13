@@ -136,8 +136,8 @@ function start_nexmark_failure_experiment() {
 
   LATENCY_MEASUREMENTS_PER_SECOND=3
   THROUGHPUT_MEASUREMENTS_PER_SECOND=3
-  python3 ./end_to_end_latency_measurer.py -k $KAFKA_EXTERNAL_ADDR -o $OUTPUT_TOPIC -p $p -d $MEASUREMENT_DURATION -mps $LATENCY_MEASUREMENTS_PER_SECOND --nexmark >$path/latency &
-  python3 ./throughput_measurer.py $MEASUREMENT_DURATION $THROUGHPUT_MEASUREMENTS_PER_SECOND $KAFKA_EXTERNAL_ADDR $OUTPUT_TOPIC verbose >$path/throughput &
+  timeout -s 9 $((MEASUREMENT_DURATION + 5)) python3 ./end_to_end_latency_measurer.py -k $KAFKA_EXTERNAL_ADDR -o $OUTPUT_TOPIC -p $p -d $MEASUREMENT_DURATION -mps $LATENCY_MEASUREMENTS_PER_SECOND --nexmark >$path/latency &
+  timeout -s 9 $((MEASUREMENT_DURATION + 5)) python3 ./throughput_measurer.py $MEASUREMENT_DURATION $THROUGHPUT_MEASUREMENTS_PER_SECOND $KAFKA_EXTERNAL_ADDR $OUTPUT_TOPIC >$path/throughput &
   sleep $TIME_TO_KILL
 
   perform_failures "$jobid" "$path" 0 $p $kd "single"
