@@ -113,10 +113,8 @@ else
   source venv/bin/activate
 fi
 
-if [ "$BUILD_DOCKER_IMAGES_FROM_SRC" == 1 ]; then
-  # Clone repositories & build
-  . 1_build_artifacts.sh
-fi
+# Clone repositories & build
+. 1_build_artifacts.sh
 
 if [ ! -d "./beam" ]; then
   echoinfo "Cloning Clonos' Beam implementation for NEXMARK experiments"
