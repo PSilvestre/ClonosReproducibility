@@ -140,7 +140,7 @@ It receives a number of parameters which can change its behaviour:
 | -h | - | Shows [h]elp |
 
 If performing remote experiments, email the authors requesting the password for the delta account in the SurfSara cluster.
-Alternatively, we can provision the cluster for you ourselves on-demand. Pedro may be reached at pmf<lastName>@gmail.com.
+Alternatively, we can provision the cluster for you ourselves on-demand. Pedro may be reached at pmf[lastName]@gmail.com.
 If necessary, we will be available to guide you through the reproduction of experiments.
 
 We will now show a series of scenarios and how the script may be used.
@@ -248,4 +248,4 @@ The same could not be achieved for the beam project, and as such the dependency 
 
 We thank the reproducibility reviewers for their efforts, and hope that you appreciate ours in attempting to simplify the complexity of these experiments.
 Such large scale experiments can be flaky and there may be the need to rerun certain experiments/stitch together results.
-The authors are prepared to support the reproducibility reviewers in their work. Again, Pedro may be reached at pmf<lastName>@gmail.com.
+The authors are prepared to support the reproducibility reviewers in their work. Again, Pedro may be reached at pmf[lastName]@gmail.com.
