@@ -4,6 +4,7 @@ PRE_FLIGHT=0
 
 REMOTE=0
 PROVISION=0
+SCALE_DOWN=0
 
 DATA_GENERATOR_IPS=""
 
@@ -19,6 +20,7 @@ function usage() {
   echo -e "\t -g [semi-colon separated list of user@IP which can be ssh'ed into] \t\t - Uses the provided hosts as data-[g]enerators for synthetic tests."
   echo -e "\t\t\t\t\t\t Requires password-less SSH. Each host must have the kafka directory in their home. Most likely not needed."
   echo -e "\t -s [password] \t\t - Provision a cluster for experiments from [S]urfSara. Password must be requested to the authors. Will exit after provisioning."
+  echo -e "\t -d \t\t\t - Scale [d]own experiments so they can be run on fewer resources. Edit experimental_parameters.sh for more control. "
   echo -e "\t -c \t\t\t - Confirms you have completed the pre-flight [c]hecks."
   echo -e "\t -h \t\t\t - shows [h]elp."
 }
@@ -49,7 +51,7 @@ echoerr() {
 echoinfo() { echo -e "INFO: $@"; }
 
 function parse_inputs() {
-  optstring=":hprs:g:c"
+  optstring=":hpdrs:g:c"
 
   while getopts ${optstring} arg; do
     case ${arg} in
@@ -58,8 +60,12 @@ function parse_inputs() {
       exit 0
       ;;
     p)
-      echoinfo "-p supplied, using pre-built docker images."
       BUILD_DOCKER_IMAGES_FROM_SRC=0
+      echoinfo "-p supplied, using pre-built docker images."
+      ;;
+    d)
+      SCALE_DOWN=1
+      echoinfo "-d supplied, scaling down experiments."
       ;;
     r)
       REMOTE=1

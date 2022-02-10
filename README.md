@@ -135,6 +135,7 @@ It receives a number of parameters which can change its behaviour:
 | -r | - | Run experiments [r]emotely on Kubernetes. ~/.kube/config needs to be set-up (it is set-up by -s)            |
 | -g | semi-colon;separated;list;of;user@IP | Uses the provided hosts as data-[g]enerators for synthetic tests. Requires password-less SSH. |
 | -s  | password | Provision a cluster for experiments from [S]urfSara. Password must be requested to the authors. Will exit after provisioning. |
+| -d || - | Scale [d]own experiments (e.g. parallelism) so they can be run on fewer resources. Edit experimental_parameters.sh for more control. |
 | -c | - | Confirms you have read and completed the pre-flight [c]hecks. |
 | -h | - | Shows [h]elp |
 
@@ -145,26 +146,28 @@ If necessary, we will be available to guide you through the reproduction of expe
 We will now show a series of scenarios and how the script may be used.
 
 #### Local experiments with pre-built images
+
+:warning: For local experiments using the -d (scale-down) flag is highly recommended.
+
 ```bash
 git clone https://github.com/PSilvestre/ClonosReproducibility
 cd ./ClonosReproducibility
-# You will probably want to lower the parallelism by editing the 
-# associative array EXPERIMENT_TO_PARALLELISM in 2_run_experiments.sh
-# It is unlikely that a parallelism of 25 will fit in any one server.
-./0_workflow.sh -p -c
+
 # -p specifies prebuilt, omission of -r assumes local.
+./0_workflow.sh -p -c -d
 ```
 
 #### Local experiments with images built from source
+
+:warning: For local experiments using the -d (scale-down) flag is highly recommended.
+
 ```bash
 docker login
 git clone https://github.com/PSilvestre/ClonosReproducibility
 cd ./ClonosReproducibility
-# You will probably want to lower the parallelism by editing the
-# associative array EXPERIMENT_TO_PARALLELISM in 2_run_experiments.sh
-# It is unlikely that a parallelism of 25 will fit in any one server.
-./0_workflow.sh -c
+
 # omission of -p assumes build from source, omission of -r assumes local.
+./0_workflow.sh -c -d
 ```
 
 #### Provision a cluster, execute remote experiments using pre-built images
@@ -193,8 +196,9 @@ To save on cluster resource we will first generate the docker images, then provi
 docker login
 git clone https://github.com/PSilvestre/ClonosReproducibility
 cd ./ClonosReproducibility
+
 # This will build the docker images, push them to the docker hub and print their names. Record these names.
-./1_build_artifacts.sh
+BUILD_DOCKER_IMAGES_FROM_SRC=1 &&  ./1_build_artifacts.sh
 
 #Once finished, provision the cluster.
 ./0_workflow.sh -c -p -s <password> 
