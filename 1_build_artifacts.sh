@@ -19,7 +19,8 @@ if [ ! -d "./Clonos" ]; then
   git clone https://github.com/delftdata/Clonos >/dev/null 2>&1
   echoinfo "Building Clonos using Maven"
   pushd ./Clonos > /dev/null 2>&1
-  mvn clean install -DskipTests -Dcheckstyle.skip >/dev/null 2>&1
+  # Single-threaded build. Attempts to build in parallel (using -T 16) fail due to unspecified dependencies between submodules.
+  mvn clean install -Dmaven.artifact.threads=16 -DskipTests -Dcheckstyle.skip -Dfast >/dev/null 2>&1
 
 	if [ "$BUILD_DOCKER_IMAGES_FROM_SRC" == 1 ]; then
 	  echoinfo "Building docker image for Clonos named: $CLONOS_IMG"
@@ -37,7 +38,8 @@ if [ ! -d "./Clonos" ]; then
   echoinfo "Switching to Flink branch"
   git checkout flink1.7 >/dev/null 2>&1
   echoinfo "Building Flink using Maven"
-  mvn clean install -DskipTests -Dcheckstyle.skip >/dev/null 2>&1
+  # Single-threaded build. Attempts to build in parallel (using -T 16) fail due to unspecified dependencies between submodules.
+  mvn clean install -Dmaven.artifact.threads=16 -DskipTests -Dcheckstyle.skip -Dfast >/dev/null 2>&1
 
 	if [ "$BUILD_DOCKER_IMAGES_FROM_SRC" == 1 ]; then
 		echoinfo "Building docker image for Flink named: $FLINK_IMG"
