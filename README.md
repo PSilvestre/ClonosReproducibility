@@ -135,7 +135,7 @@ It receives a number of parameters which can change its behaviour:
 | -r | - | Run experiments [r]emotely on Kubernetes. ~/.kube/config needs to be set-up (it is set-up by -s)            |
 | -g | semi-colon;separated;list;of;user@IP | Uses the provided hosts as data-[g]enerators for synthetic tests. Requires password-less SSH. |
 | -s  | password | Provision a cluster for experiments from [S]urfSara. Password must be requested to the authors. Will exit after provisioning. |
-| -d || - | Scale [d]own experiments (e.g. parallelism) so they can be run on fewer resources. Edit experimental_parameters.sh for more control. |
+| -d | - | Scale [d]own experiments (e.g. parallelism) so they can be run on fewer resources. Edit experimental_parameters.sh for more control. |
 | -c | - | Confirms you have read and completed the pre-flight [c]hecks. |
 | -h | - | Shows [h]elp |
 
