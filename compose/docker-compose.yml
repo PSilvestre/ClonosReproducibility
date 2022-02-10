@@ -11,9 +11,9 @@ services:
       - "2181:2181"
   kafka:
     image: wurstmeister/kafka:2.11-0.11.0.3
-    mem_limit: 2048m
-    mem_reservation: 2048m
-    cpus: 2
+    mem_limit: 4048m
+    mem_reservation: 4048m
+    cpus: 4
     ports:
       - "9092:9092"
     links:
@@ -33,11 +33,12 @@ services:
 #================== Flink ====================================
   jobmanager:
     image: ${SYSTEM_CONTAINER_IMG}
-    mem_limit: 1024m
-    mem_reservation: 1024m
+    mem_limit: 3024m
+    mem_reservation: 3024m
     cpus: 2
     expose:
       - "6123"
+      - "8081"
     ports:
       - "8081:8081"
     command: jobmanager
@@ -53,9 +54,9 @@ services:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
   taskmanager:
     image: ${SYSTEM_CONTAINER_IMG}
-    mem_limit: 1024m
-    mem_reservation: 1024m
-    cpus: 1
+    mem_limit: 2048m
+    mem_reservation: 2048m
+    cpus: 2
     expose:
       - "6121"
       - "6122"
@@ -71,13 +72,13 @@ services:
       - namenode:hdfs-namenode
       - kafka:kafkfa
     environment:
-       JOB_MANAGER_RPC_ADDRESS: jobmanager
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
        # ================ HDFS ===========================================
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
-    mem_limit: 1024m
-    mem_reservation: 1024m
-    cpus: 1
+    mem_limit: 2048m
+    mem_reservation: 2048m
+    cpus: 2
     container_name: namenode
     restart: always
     ports:
@@ -92,9 +93,9 @@ services:
 
   datanode:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
-    mem_limit: 1024m
-    mem_reservation: 1024m
-    cpus: 1
+    mem_limit: 4024m
+    mem_reservation: 4024m
+    cpus: 4
     container_name: datanode
     restart: always
     volumes:

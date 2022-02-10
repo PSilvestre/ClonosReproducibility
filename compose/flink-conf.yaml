@@ -34,9 +34,9 @@
 
 #web.timeout: 100
 
-jobmanager.execution.failover-strategy: full
+jobmanager.execution.failover-strategy: standbytask
 
-jobmanager.execution.num-standby-tasks: 1
+jobmanager.execution.num-standby-tasks: 0
 
 taskmanager.inflight.type: spillable
 taskmanager.inflight.spill.policy: availability
@@ -64,18 +64,25 @@ metrics.latency.granularity: single
 metrics.latency.history-size: 10
 web.refresh-interval: 2000
 
-heartbeat.interval: 4000
-heartbeat.timeout: 6000
+heartbeat.interval: 20000
+heartbeat.timeout: 200000
 
 taskmanager.network.request-backoff.initial: 500
 taskmanager.network.request-backoff.max: 100000
 
 akka.watch.heartbeat.pause: 500 s
 akka.ask.timeout: 120 s
+akka.tcp.timeout: 120 s
+
+jobmanager.rpc.address: jobmanager
+
+
+
+
 #state.backed.rocksdb.localdir: /opt/flink/rocks
 
 
-jobmanager.rpc.address: jobmanager
+
 # The RPC port where the JobManager is reachable.
 
 jobmanager.rpc.port: 6123
@@ -83,12 +90,12 @@ jobmanager.rpc.port: 6123
 
 # The heap size for the JobManager JVM
 
-jobmanager.heap.size: 1000m
+jobmanager.heap.size: 3000m
 
 
 # The heap size for the TaskManager JVM
 
-taskmanager.heap.size: 1000m
+taskmanager.heap.size: 2000m
 
 
 # The number of task slots that each TaskManager offers. Each slot runs one parallel pipeline.
