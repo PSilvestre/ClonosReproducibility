@@ -1,0 +1,19 @@
+sudo apt update
+sudo apt upgrade
+sudo apt-get install python3-venv python3-pip openjdk-8-jdk-headless gradle make docker.io jq texlive-latex-base gnupg2 pass
+sudo apt remove openjdk-11-jre-headless
+sudo usermod -aG docker ${USER}
+
+sudo curl -L https://github.com/docker/compose/releases/download/v2.2.3/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+
+wget https://archive.apache.org/dist/maven/maven-3/3.2.5/binaries/apache-maven-3.2.5-bin.tar.gz
+sudo tar xvf apache-maven-3.2.5-bin.tar.gz  -C /opt/
+ADD "...:/opt/apache-maven-3.2.5/bin/" >> /etc/environment
+
+source /etc/environment
+# Log out and log back in
+
+
+
