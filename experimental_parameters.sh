@@ -41,6 +41,7 @@ QUERY_TO_KILL_DEPTH[8]=2
 
 # If the user requested us to scale down the experiments...
 if [ "$SCALE_DOWN" = "1" ] ; then
+
   # Reduce an order of magnitude in the number of events of nexmark overhead experiments
   QUERY_TO_NUM_EVENTS[1]=10000000
   QUERY_TO_NUM_EVENTS[2]=10000000
@@ -57,14 +58,10 @@ if [ "$SCALE_DOWN" = "1" ] ; then
   QUERY_TO_NUM_EVENTS[14]=1000000
 
 
-  #Reduce the generator throughput in Nexmark failure experiments
-  QUERY_TO_THROUGHPUT[3]=10000
-  QUERY_TO_THROUGHPUT[8]=10000
-
   #Reduce the parallelism considerably
   EXPERIMENT_TO_PARALLELISM["OVERHEAD"]=5
-  EXPERIMENT_TO_PARALLELISM["SYNTH_MULTIPLE"]=3
-  EXPERIMENT_TO_PARALLELISM["SYNTH_CONCURRENT"]=3
-  EXPERIMENT_TO_PARALLELISM["NEXMARK_Q3"]=3
-  EXPERIMENT_TO_PARALLELISM["NEXMARK_Q8"]=3
+  EXPERIMENT_TO_PARALLELISM["SYNTH_MULTIPLE"]=4
+  EXPERIMENT_TO_PARALLELISM["SYNTH_CONCURRENT"]=4
+  EXPERIMENT_TO_PARALLELISM["NEXMARK_Q3"]=4
+  EXPERIMENT_TO_PARALLELISM["NEXMARK_Q8"]=4
 fi

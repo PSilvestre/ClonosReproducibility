@@ -67,12 +67,12 @@ web.refresh-interval: 2000
 heartbeat.interval: 20000
 heartbeat.timeout: 200000
 
-taskmanager.network.request-backoff.initial: 500
-taskmanager.network.request-backoff.max: 100000
+taskmanager.network.request-backoff.initial: 5000
+taskmanager.network.request-backoff.max: 1000000
 
-akka.watch.heartbeat.pause: 500 s
-akka.ask.timeout: 120 s
-akka.tcp.timeout: 120 s
+akka.watch.heartbeat.pause: 200000 s
+akka.ask.timeout: 200000 s
+akka.tcp.timeout: 200000 s
 
 jobmanager.rpc.address: jobmanager
 

@@ -23,7 +23,7 @@ for system in "clonos" "flink" ; do
   change_beam_branch "clonos-runner"
   set_number_of_standbys 0
   set_sensitive_failure_detection "false"
-  set_heartbeat 20000 200000 #Reduces flakyness of tests because no failures should happen (No false positive failure detections).
+  set_heartbeat 20000000 200000000 #Reduces flakyness of tests because no failures should happen (No false positive failure detections).
 
   redeploy_flink_cluster $system
 

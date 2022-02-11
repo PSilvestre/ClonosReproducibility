@@ -1,12 +1,7 @@
 #!/bin/bash
 
 #Limit Gradle Mem usage
-if [ "$REMOTE" = 0 ] ; then
-  #Try to save memory when running experiments locally.
-  export GRADLE_OPTS="-Xmx256m -Dorg.gradle.jvmargs='-Xmx1024m -XX:MaxPermSize=256m'"
-else
-  export GRADLE_OPTS="-Xmx1024m -Dorg.gradle.jvmargs='-Xmx4096m -XX:MaxPermSize=1024m'"
-fi
+export GRADLE_OPTS="-Xmx1024m -Dorg.gradle.jvmargs='-Xmx4096m -XX:MaxPermSize=1024m'"
 
 # Checkpoint every 10 seconds
 D_CI=5000
