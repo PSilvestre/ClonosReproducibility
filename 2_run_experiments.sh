@@ -33,23 +33,24 @@ for system in "clonos" "flink" ; do
     if [ "$system" = "clonos" ]; then
       #If the system is Clonos, run two configurations full DSD and one DSD
       for dsd in "-1" "1"; do
-
-        start=`date +%s`
-        reset_flink_cluster $system
-        clear_kafka_topics $par
-        echoinfo "Starting configuration: SYS:$system;Q:$query;PAR:$par;CI:$D_CI;NE:$num_events;DSD:$dsd;PTI:$D_PTI_CLONOS"
-        jobstr="$system;$query;$par;$D_CI;$num_events;$dsd;$D_PTI_CLONOS"
-        start_nexmark_overhead_experiment $jobstr $overhead_path
-        end=`date +%s`
-        runtime=$((end-start))
-        echoinfo "Experiment took $runtime seconds total."
+        for attempt in {1..3}; do
+          reset_flink_cluster $system
+          echoinfo "Starting configuration: SYS:$system;Q:$query;PAR:$par;CI:$D_CI;NE:$num_events;DSD:$dsd;PTI:$D_PTI_CLONOS"
+          echoinfo "Attempt $attempt"
+          jobstr="$system;$query;$par;$D_CI;$num_events;$dsd;$D_PTI_CLONOS"
+          res=$(start_nexmark_overhead_experiment $jobstr $overhead_path)
+          [ "$res" != "0" ] || break
+        done
       done
     elif [ "$system" = "flink" ]; then
-      reset_flink_cluster $system
-      clear_kafka_topics $par
-      echoinfo "Starting configuration: SYS:$system;Q:$query;PAR:$par;CI:$D_CI;NE:$num_events;DSD:$D_DSD_FLINK;PTI:$D_PTI_FLINK"
-      jobstr="$system;$query;$par;$D_CI;$num_events;$D_DSD_FLINK;$D_PTI_FLINK"
-      start_nexmark_overhead_experiment $jobstr $overhead_path
+      for attempt in {1..3}; do
+        reset_flink_cluster $system
+        echoinfo "Starting configuration: SYS:$system;Q:$query;PAR:$par;CI:$D_CI;NE:$num_events;DSD:$D_DSD_FLINK;PTI:$D_PTI_FLINK"
+        echoinfo "Attempt $attempt"
+        jobstr="$system;$query;$par;$D_CI;$num_events;$D_DSD_FLINK;$D_PTI_FLINK"
+        res=$(start_nexmark_overhead_experiment $jobstr $overhead_path)
+        [ "$res" != "0" ] || break
+      done
     fi
   done
 

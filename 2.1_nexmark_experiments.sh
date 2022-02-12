@@ -157,11 +157,19 @@ function start_nexmark_overhead_experiment() {
   local pti="${params[6]}"
 
   args=$(build_args $jobstr "overhead")
+  pushd ./beam  > /dev/null 2>&1
+  results=$(timeout --foreground --preserve-status 10m bash -c "./gradlew :sdks:java:testing:nexmark:run -Pnexmark.runner=\":runners:$system:1.7\" -Pnexmark.args=\"$args\" 2>&1")
+  code="$?"
+  popd  > /dev/null 2>&1
 
-  results=$(bash -c "cd ./beam && ./gradlew :sdks:java:testing:nexmark:run -Pnexmark.runner=\":runners:$system:1.7\" -Pnexmark.args=\"$args\" 2>&1 ")
+  if [ "$code" = "0" ] ; then
+    measured_throughput=$(echo "$results" | grep 0000 | grep -v 'query' | grep -v 'event' | tail -n1 | awk '{print $3}')
+    echo -e "$system\t$q\t$p\t$dsd\t$ne\t$measured_throughput" >> $path
+  else
+    echoerr "Experiment timed out..."
+  fi
+  echo "$code"
 
-  measured_throughput=$(echo "$results" | grep 0000 | grep -v 'query' | grep -v 'event' | tail -n1 | awk '{print $3}')
-  echoinfo "Q$q Throughput: $measured_throughput"
-  echo -e "$system\t$q\t$p\t$dsd\t$ne\t$measured_throughput" >> $path
+
 
 }

@@ -18,10 +18,12 @@ def failure_get_killtimes(path: str):
 
     return killtimes
 
+
 def get_input_throughput(path: str):
     with open(f"{path}/input-throughput") as f:
         throughput = int(f.readline())
     return throughput
+
 
 def lowpass_smooth(data: pd.Series, alpha: float):
     data_filtered = []
@@ -62,7 +64,7 @@ def failure_latency_compare(save_name: str, latencies: List[pd.DataFrame], killt
         for p in range(num_partitions):
             df[f"OUTPUT-{p}"] = df[f"OUTPUT-{p}"] / 1000 - init_ts / 1000
 
-        #Anotate graph with recovery time
+        # Anotate graph with recovery time
         last_fail = max(killtimes_adjusted)
         recovered = compute_recovered_timestamp(df, last_fail, num_partitions, time_range)
         axs[i].annotate("", xy=(last_fail, max_lat / 4 * 1), xycoords='data',
@@ -195,8 +197,25 @@ def arange_pretty(ymax):
     return y_ticks
 
 
+def repair_overhead_df_if_needed(df: pd.DataFrame):
+    parallelism = df["PARALLELISM"][0]
+    failed_queries = set([])
+    for system in ["flink", "clonos"]:
+        for query in range(1, 15):
+            if query != 10:
+                for dsd in [-1, 1]:
+                    if dsd == 1 or (dsd == -1 and system == "clonos"):
+                        if df.query("SYSTEM == @system & QUERY == @query & DSD == @dsd").empty:
+                            df.loc[len(df.index)] = [system, query, parallelism, dsd, 1, 1]
+                            if system == "flink":
+                                failed_queries.add(query)
+    return df, failed_queries
+
+
 def draw_overhead_experiment_graph(file: str, save_path: str):
     df = pd.read_csv(file, sep="\s+")
+    df, failed_qs = repair_overhead_df_if_needed(df)
+
     df_flink = df.query("SYSTEM == 'flink'").copy().sort_values(by='QUERY')
     df_clonos_dsd_1 = df.query("SYSTEM == 'clonos' & DSD == 1").copy().sort_values(by='QUERY')
     df_clonos_dsd_neg1 = df.query("SYSTEM == 'clonos' & DSD == -1").copy().sort_values(by='QUERY')
@@ -207,6 +226,11 @@ def draw_overhead_experiment_graph(file: str, save_path: str):
         df_clonos_dsd_1["THROUGHPUT"].to_numpy() / df_flink["THROUGHPUT"].to_numpy(), 0, 1)
     df_clonos_dsd_neg1["REL_THROUGHPUT"] = np.clip(
         df_clonos_dsd_neg1["THROUGHPUT"].to_numpy() / df_flink["THROUGHPUT"].to_numpy(), 0, 1)
+
+    for q in failed_qs:
+        df_flink.loc[df_flink["QUERY"] == q, "REL_THROUGHPUT"] = 0
+        df_clonos_dsd_1.loc[df_clonos_dsd_1["QUERY"] == q, "REL_THROUGHPUT"] = 0
+        df_clonos_dsd_neg1.loc[df_clonos_dsd_neg1["QUERY"] == q, "REL_THROUGHPUT"] = 0
 
     # If relative throughput Clonos exceeds 1.0 we consider it noise and just set it to 1.
 
@@ -248,9 +272,6 @@ def draw_overhead_experiment_graph(file: str, save_path: str):
             # If you want a consistent color, you can just set it as a constant, e.g. #222222
             ax.text(text_x, text_y, text, ha='center', va='bottom', color=bar_color, size=12, rotation="vertical")
 
-    # ax.set_ylabel("Relative Throughput")
-    # ax.set_xlabel("Query")
-    # ax.set_xticks(x)
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.075), fancybox=False, shadow=False, ncol=5)
 
     fig.tight_layout()
@@ -311,8 +332,8 @@ def main():
     output_path: str = sys.argv[2]
 
     draw_overhead_experiment_graph(input_path + "/nexmark_overhead", output_path + "/overhead.pdf")
-    draw_nexmark_fail_experiment_graph(input_path + "/nexmark_failure", output_path)
-    draw_synthetic_fail_experiment_graph(input_path + "/synthetic_failure", output_path)
+    # draw_nexmark_fail_experiment_graph(input_path + "/nexmark_failure", output_path)
+    # draw_synthetic_fail_experiment_graph(input_path + "/synthetic_failure", output_path)
 
 
 if __name__ == "__main__":

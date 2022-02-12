@@ -56,6 +56,9 @@ function get_vertex_host() {
 
 function reset_flink_cluster() {
   local system=$1
+
+  kill_all_gradle_servers
+
   if [ "$system" = "flink" ]; then
     export SYSTEM_CONTAINER_IMG=$FLINK_IMG
     local SYSTEM_CONTAINER_IMG=$FLINK_IMG
@@ -68,28 +71,32 @@ function reset_flink_cluster() {
   if [ "$REMOTE" = "0" ]; then
     $(cd ./compose && docker-compose down -v 2>/dev/null && docker-compose up -d --scale taskmanager=$NUM_TASKMANAGERS_REQUIRED 2>/dev/null)
   else
-    kubectl delete pod $(kubectl get pods | grep flink | awk {'print $1'})>/dev/null 2>&1
+    kubectl delete pod $(kubectl get pods | grep flink | awk {'print $1'}) >/dev/null 2>&1
   fi
 }
 
-function redeploy_flink_cluster() {
-   local system=$1
-   if [ "$system" = "flink" ]; then
-     export SYSTEM_CONTAINER_IMG=$FLINK_IMG
-     local SYSTEM_CONTAINER_IMG=$FLINK_IMG
-   else
-     export SYSTEM_CONTAINER_IMG=$CLONOS_IMG
-     local SYSTEM_CONTAINER_IMG=$CLONOS_IMG
-   fi
+function kill_all_gradle_servers() {
+  for i in $(ps -axu | grep "gradle" | awk '{print $2}'); do kill $i >/dev/null 2>&1; done
+}
 
-   if [ "$REMOTE" = "1" ]; then
-     echoinfo "Redeploying $system with new configuration for next experiments"
-     sed -i "s#image:.*#image: $SYSTEM_CONTAINER_IMG#g" ./kubernetes/charts/flink/values.yaml
-     helm delete sps >/dev/null 2>&1
-     sleep 10
-     helm install sps ./kubernetes/charts/flink/ >/dev/null 2>&1
-     sleep 30
-   fi
+function redeploy_flink_cluster() {
+  local system=$1
+  if [ "$system" = "flink" ]; then
+    export SYSTEM_CONTAINER_IMG=$FLINK_IMG
+    local SYSTEM_CONTAINER_IMG=$FLINK_IMG
+  else
+    export SYSTEM_CONTAINER_IMG=$CLONOS_IMG
+    local SYSTEM_CONTAINER_IMG=$CLONOS_IMG
+  fi
+
+  if [ "$REMOTE" = "1" ]; then
+    echoinfo "Redeploying $system with new configuration for next experiments"
+    sed -i "s#image:.*#image: $SYSTEM_CONTAINER_IMG#g" ./kubernetes/charts/flink/values.yaml
+    helm delete sps >/dev/null 2>&1
+    sleep 10
+    helm install sps ./kubernetes/charts/flink/ >/dev/null 2>&1
+    sleep 30
+  fi
 }
 
 function kill_taskmanager() {
@@ -114,7 +121,6 @@ function perform_failures() {
   local vertex_ids=($(get_job_vertexes $jobid))
 
   local taskmanagers_used=($(for vid in ${vertex_ids[@]}; do curl -sS -X GET "http://$FLINK_ADDR/jobs/$jobid/vertices/$vid/taskmanagers" | jq '.taskmanagers[] | .host' | tr -d '"' | tr ":" " " | awk {'print $1'}; done))
-
 
   if [ "$killtype" = "single" ]; then
     #Kill par 0 at the requested depth
@@ -171,7 +177,7 @@ function get_latest_job_id() {
   vertex_ids_two=($(get_job_vertexes ${jobids[1]}))
 
   result=""
-  if [ $ts_first  -gt $ts_second ]; then
+  if [ $ts_first -gt $ts_second ]; then
     result=${jobids[0]}
   else
     result=${jobids[1]}
@@ -199,7 +205,7 @@ function start_data_generators() {
   #Start local producers
   prodindex=0
 
-  if [ "$size" = "0" ] ; then # Only use local producer when no generators provided
+  if [ "$size" = "0" ]; then # Only use local producer when no generators provided
     for i in $(seq $NUM_PRODUCERS_PER_HOST); do
       timeout $duration_seconds ./kafka/bin/kafka-producer-perf-test.sh --dist-producer-index $prodindex --dist-producer-total $num_prod_tot --topic $INPUT_TOPIC --num-records $num_records_per_prod --throughput $throughput_per_prod --producer-props bootstrap.servers=$KAFKA_EXTERNAL_ADDR key.serializer=org.apache.kafka.common.serialization.StringSerializer value.serializer=org.apache.kafka.common.serialization.StringSerializer >/dev/null &
       prodindex=$((prodindex + 1))
@@ -235,19 +241,18 @@ function set_config_value() {
 function set_failover_strategy() {
   local system=$1
   strategy=${SYSTEM_TO_FAILOVER_STRATEGY[$system]}
-  set_config_value "jobmanager.execution.failover-strategy"  "$strategy"
+  set_config_value "jobmanager.execution.failover-strategy" "$strategy"
 }
 
 function set_sensitive_failure_detection() {
   local val=$1
-  set_config_value "taskmanager.network.netty.enableSensitiveFailureDetection"  "$val"
+  set_config_value "taskmanager.network.netty.enableSensitiveFailureDetection" "$val"
 }
 
 function set_number_of_standbys() {
   num=$1
   set_config_value "jobmanager.execution.num-standby-tasks" $num
 }
-
 
 function set_heartbeat() {
   interval=$1
