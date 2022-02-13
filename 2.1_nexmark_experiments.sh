@@ -158,7 +158,7 @@ function start_nexmark_overhead_experiment() {
 
   args=$(build_args $jobstr "overhead")
   pushd ./beam  > /dev/null 2>&1
-  results=$(timeout --foreground --preserve-status 10m bash -c "./gradlew :sdks:java:testing:nexmark:run -Pnexmark.runner=\":runners:$system:1.7\" -Pnexmark.args=\"$args\" 2>&1")
+  results=$(timeout -s SIGKILL --foreground --preserve-status 10m bash -c "./gradlew :sdks:java:testing:nexmark:run -Pnexmark.runner=\":runners:$system:1.7\" -Pnexmark.args=\"$args\" 2>&1")
   code="$?"
   popd  > /dev/null 2>&1
 
