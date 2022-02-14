@@ -14,7 +14,7 @@ if [ ! -d "./Clonos" ]; then
 	if [ "$BUILD_DOCKER_IMAGES_FROM_SRC" == 0 ]; then
 	  # Check if build cache has folders for testing vesions of clonos and flink. If so, can skip build step.
 	  m2_path="~/.m2/repository/org/apache/flink/flink-runtime_2.11"
-	  if [ -d "$m2_path/1.7-CLONOS-SNAPSHOT/" && -d "$m2_path/1.7-FLINK-SNAPSHOT/" ] ; then
+	  if [ -d "$m2_path/1.7-CLONOS-SNAPSHOT/" ] && [ -d "$m2_path/1.7-FLINK-SNAPSHOT/" ] ; then
 	    return
 	  else
 		  echoinfo ".m2 cache does not contain Clonos build files."
