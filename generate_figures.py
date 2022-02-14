@@ -332,8 +332,8 @@ def main():
     output_path: str = sys.argv[2]
 
     draw_overhead_experiment_graph(input_path + "/nexmark_overhead", output_path + "/overhead.pdf")
-    # draw_nexmark_fail_experiment_graph(input_path + "/nexmark_failure", output_path)
-    # draw_synthetic_fail_experiment_graph(input_path + "/synthetic_failure", output_path)
+    draw_nexmark_fail_experiment_graph(input_path + "/nexmark_failure", output_path)
+    draw_synthetic_fail_experiment_graph(input_path + "/synthetic_failure", output_path)
 
 
 if __name__ == "__main__":
