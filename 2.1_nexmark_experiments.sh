@@ -7,7 +7,7 @@ export GRADLE_OPTS="-Xmx1024m -Dorg.gradle.jvmargs='-Xmx4096m -XX:MaxPermSize=10
 D_CI=5000
 
 D_DSD_CLONOS_FAILURE=1
-D_DSD_FLINK=0 #Flink does not have this parameter
+D_DSD_FLINK=1 #Flink does not have this parameter
 
 D_PTI_CLONOS=10
 D_PTI_FLINK=0 #Flink does not have this parameter
