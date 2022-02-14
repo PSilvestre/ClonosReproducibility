@@ -200,20 +200,29 @@ def arange_pretty(ymax):
 def repair_overhead_df_if_needed(df: pd.DataFrame):
     parallelism = df["PARALLELISM"][0]
     failed_queries = set([])
-    for system in ["flink", "clonos"]:
-        for query in range(1, 15):
-            if query != 10:
-                for dsd in [-1, 1]:
-                    if dsd == 1 or (dsd == -1 and system == "clonos"):
-                        if df.query("SYSTEM == @system & QUERY == @query & DSD == @dsd").empty:
-                            df.loc[len(df.index)] = [system, query, parallelism, dsd, 1, 1]
-                            if system == "flink":
-                                failed_queries.add(query)
+
+    for query in range(1, 15):
+        if query != 10:
+            if df.query("SYSTEM == 'flink' & QUERY == @query").empty:
+                df.loc[len(df.index)] = ["flink", query, parallelism, 0, 1, 1]
+                failed_queries.add(query)
+            for dsd in [-1, 1]:
+                if df.query("SYSTEM == 'clonos' & QUERY == @query & DSD == @dsd").empty:
+                    df.loc[len(df.index)] = ["clonos", query, parallelism, dsd, 1, 1]
+
     return df, failed_queries
 
 
 def draw_overhead_experiment_graph(file: str, save_path: str):
-    df = pd.read_csv(file, sep="\s+")
+    data_types = {
+        "SYSTEM": str,
+        "QUERY": int,
+        "PARALLELISM": int,
+        "DSD": int,
+        "NUM_EVENTS": int,
+        "THROUGHPUT": float 
+    }
+    df = pd.read_csv(file, sep="\s+", dtype=data_types)
     df, failed_qs = repair_overhead_df_if_needed(df)
 
     df_flink = df.query("SYSTEM == 'flink'").copy().sort_values(by='QUERY')
@@ -289,11 +298,18 @@ def draw_nexmark_fail_experiment_graph(input_path: str, output_path: str):
         flink_thr = pd.read_csv(f"{input_path}/flink/{q}/throughput", sep="\s+")
         flink_lat = pd.read_csv(f"{input_path}/flink/{q}/latency", sep="\s+")
 
-        failure_throughput_compare(output_path + "/" + q + "_failure_throughput.pdf", [clonos_thr, flink_thr], kts,
+        try:
+            failure_throughput_compare(output_path + "/" + q + "_failure_throughput.pdf", [clonos_thr, flink_thr], kts,
                                    time_range=(30, 160), normalizer=1000, ylabel="Throughput (K Records/second)",
                                    input_thr=0)
-        failure_latency_compare(f"{output_path}/{q}_failure_latency.pdf", [clonos_lat, flink_lat], kts,
+        except:
+            print("Failed generating failure throughput graph for Nexmark {}", q)
+
+        try:
+            failure_latency_compare(f"{output_path}/{q}_failure_latency.pdf", [clonos_lat, flink_lat], kts,
                                 time_range=(30, 160))
+        except:
+            print("Failed generating failure latency graph for Nexmark {}", q)
 
 
 def draw_synthetic_fail_experiment_graph(input_path: str, output_path: str):
@@ -311,12 +327,18 @@ def draw_synthetic_fail_experiment_graph(input_path: str, output_path: str):
 
         input_throughput = get_input_throughput(clonos_path)
 
-        failure_throughput_compare(output_path + "/" + fail_type + "_failure_throughput.pdf", [clonos_thr, flink_thr],
+        try:
+            failure_throughput_compare(output_path + "/" + fail_type + "_failure_throughput.pdf", [clonos_thr, flink_thr],
                                    kts,
                                    time_range=(30, 200), normalizer=1000000,
-                                   ylabel="Throughput (M Records/second)", input_thr=input_throughput)  # TODO input thr
-        failure_latency_compare(f"{output_path}/{fail_type}_failure_latency.pdf", [clonos_lat, flink_lat], kts,
+                                   ylabel="Throughput (M Records/second)", input_thr=input_throughput) 
+        except:
+            print("Failed generating failure throughput graph for Synthetic {}", fail_type)
+        try:
+            failure_latency_compare(f"{output_path}/{fail_type}_failure_latency.pdf", [clonos_lat, flink_lat], kts,
                                 time_range=(30, 200))
+        except:
+            print("Failed generating failure latency graph for Synthetic {}", fail_type)
 
 
 def main():
