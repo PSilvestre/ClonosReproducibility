@@ -131,6 +131,7 @@ The main script is ```0_workflow.sh```. By default it will execute experiments l
 It receives a number of parameters which can change its behaviour:
 | Flag | Parameter             | Description                                                                           |
 | ---- | --------------------- | ------------------------------------------------------------------------------------- |
+| -f | - | Run [f]ailure experiments only.             |
 | -p | - | Uses [p]re-built images of Flink and Clonos. Skips building docker images from artifact source.             |
 | -r | - | Run experiments [r]emotely on Kubernetes. ~/.kube/config needs to be set-up (it is set-up by -s)            |
 | -g | semi-colon;separated;list;of;user@IP | Uses the provided hosts as data-[g]enerators for synthetic tests. Requires password-less SSH. |

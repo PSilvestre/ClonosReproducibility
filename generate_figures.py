@@ -35,7 +35,6 @@ def lowpass_smooth(data: pd.Series, alpha: float):
 
 def failure_latency_compare(save_name: str, latencies: List[pd.DataFrame], killtimes: List[int],
                             time_range: Tuple[int, int]):
-    # TODO recovery anotations
     matplotlib.rcParams.update({'font.size': 16})
     linestyles = ["", ""]
     markers = ["+", "x"]
@@ -353,7 +352,11 @@ def main():
     input_path: str = sys.argv[1]
     output_path: str = sys.argv[2]
 
-    draw_overhead_experiment_graph(input_path + "/nexmark_overhead", output_path + "/overhead.pdf")
+    try:
+        draw_overhead_experiment_graph(input_path + "/nexmark_overhead", output_path + "/overhead.pdf")
+    except:
+        print("Failed to generate overhead experiment graph.")
+
     draw_nexmark_fail_experiment_graph(input_path + "/nexmark_failure", output_path)
     draw_synthetic_fail_experiment_graph(input_path + "/synthetic_failure", output_path)
 

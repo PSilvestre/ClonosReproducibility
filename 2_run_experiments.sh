@@ -19,40 +19,45 @@ for system in "clonos" "flink" ; do
   # Source nexmark testing scripts
   . ./2.1_nexmark_experiments.sh
 
-  echo -e "----------------------------- Starting Nexmark Overhead Experiments -------------------------------"
-  change_beam_branch "clonos-runner"
-  set_number_of_standbys 0
-  set_sensitive_failure_detection "false"
-  set_heartbeat 20000000 200000000 #Reduces flakyness of tests because no failures should happen (No false positive failure detections).
+  if [ "$RUN_OVERHEAD" = "1" ] ; then
+    echo -e "----------------------------- Starting Nexmark Overhead Experiments -------------------------------"
+    change_beam_branch "clonos-runner"
+    set_number_of_standbys 0
+    set_sensitive_failure_detection "false"
+    set_heartbeat 20000000 200000000 #Reduces flakyness of tests because no failures should happen (No false positive failure detections).
 
-  redeploy_flink_cluster $system
-
-  for query in 1 2 3 4 5 6 7 8 9 11 12 13 14; do
-    num_events=${QUERY_TO_NUM_EVENTS[$query]}
-    par=${EXPERIMENT_TO_PARALLELISM["OVERHEAD"]}
-    if [ "$system" = "clonos" ]; then
-      #If the system is Clonos, run two configurations full DSD and one DSD
-      for dsd in "-1" "1"; do
+    redeploy_flink_cluster $system
+    for query in 1 2 3 4 5 6 7 8 9 11 12 13 14; do
+      num_events=${QUERY_TO_NUM_EVENTS[$query]}
+      par=${EXPERIMENT_TO_PARALLELISM["OVERHEAD"]}
+      if [ "$system" = "clonos" ]; then
+        #If the system is Clonos, run two configurations full DSD and one DSD
+        for dsd in "-1" "1"; do
+          for attempt in {1..3}; do
+            reset_flink_cluster $system
+            echoinfo "Starting configuration: SYS:$system;Q:$query;PAR:$par;CI:$D_CI;NE:$num_events;DSD:$dsd;PTI:$D_PTI_CLONOS"
+            echoinfo "Attempt $attempt"
+            jobstr="$system;$query;$par;$D_CI;$num_events;$dsd;$D_PTI_CLONOS"
+            res=$(start_nexmark_overhead_experiment $jobstr $overhead_path)
+            [ "$res" != "0" ] || break
+          done
+        done
+      elif [ "$system" = "flink" ]; then
         for attempt in {1..3}; do
           reset_flink_cluster $system
-          echoinfo "Starting configuration: SYS:$system;Q:$query;PAR:$par;CI:$D_CI;NE:$num_events;DSD:$dsd;PTI:$D_PTI_CLONOS"
+          echoinfo "Starting configuration: SYS:$system;Q:$query;PAR:$par;CI:$D_CI;NE:$num_events;DSD:$D_DSD_FLINK;PTI:$D_PTI_FLINK"
           echoinfo "Attempt $attempt"
-          jobstr="$system;$query;$par;$D_CI;$num_events;$dsd;$D_PTI_CLONOS"
+          jobstr="$system;$query;$par;$D_CI;$num_events;$D_DSD_FLINK;$D_PTI_FLINK"
           res=$(start_nexmark_overhead_experiment $jobstr $overhead_path)
           [ "$res" != "0" ] || break
         done
-      done
-    elif [ "$system" = "flink" ]; then
-      for attempt in {1..3}; do
-        reset_flink_cluster $system
-        echoinfo "Starting configuration: SYS:$system;Q:$query;PAR:$par;CI:$D_CI;NE:$num_events;DSD:$D_DSD_FLINK;PTI:$D_PTI_FLINK"
-        echoinfo "Attempt $attempt"
-        jobstr="$system;$query;$par;$D_CI;$num_events;$D_DSD_FLINK;$D_PTI_FLINK"
-        res=$(start_nexmark_overhead_experiment $jobstr $overhead_path)
-        [ "$res" != "0" ] || break
-      done
-    fi
-  done
+      fi
+    done
+  else
+    echoinfo "--------------------------------------- Skipping overhead experiments... --------------------------------"
+    echoinfo "Copying overhead measurements provided in paper..."
+    cp ./data/presented_in_paper/nexmark_overhead $overhead_path
+  fi
 
   echo -e "----------------------------- Starting Nexmark Failure Experiments --------------------------------"
   change_beam_branch "clonos-runner-failure-experiments"

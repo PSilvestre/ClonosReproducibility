@@ -5,6 +5,7 @@ PRE_FLIGHT=0
 REMOTE=0
 PROVISION=0
 SCALE_DOWN=0
+RUN_OVERHEAD=1
 
 DATA_GENERATOR_IPS=""
 
@@ -15,6 +16,7 @@ FLINK_IMG="psylvan/flink_repro_build"
 
 function usage() {
   echo "Clonos Reproducibility:"
+  echo -e "\t -f \t\t\t - Run [f]ailure experiments only."
   echo -e "\t -p \t\t\t - Uses [p]re-built images of Flink and Clonos. Skips building docker images from artifact source (They should be identical)."
   echo -e "\t -r \t\t\t - Run experiments [r]emotely on Kubernetes. ~/.kube/config needs to be set-up"
   echo -e "\t -g [semi-colon separated list of user@IP which can be ssh'ed into] \t\t - Uses the provided hosts as data-[g]enerators for synthetic tests."
@@ -51,7 +53,7 @@ echoerr() {
 echoinfo() { echo -e "INFO: $@"; }
 
 function parse_inputs() {
-  optstring=":hpdrs:g:c"
+  optstring=":hfpdrs:g:c"
 
   while getopts ${optstring} arg; do
     case ${arg} in
@@ -62,6 +64,11 @@ function parse_inputs() {
     p)
       BUILD_DOCKER_IMAGES_FROM_SRC=0
       echoinfo "-p supplied, using pre-built docker images."
+      ;;
+
+    f)
+      RUN_OVERHEAD=0
+      echoinfo "-f supplied, skipping overhead experiments and going straight to failure experiments."
       ;;
     d)
       SCALE_DOWN=1
