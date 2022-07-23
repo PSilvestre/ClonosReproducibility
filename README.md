@@ -53,10 +53,10 @@ We provide the requested README format below.
 **Compiler Info:** openjdk version "1.8.0_292"
 
 **Packages/Libraries Needed:** To build the system, maven will download all dependencies automatically. 
-**Dependencies** (See below for a breakdown): java8, python3 (with pip and virtualenv), gradle 4<, make, pdflatex, bibtex, git, maven 3.2.5, docker, docker-compose, kubectl, helm
+**Dependencies** (See below for a breakdown): bash >=4, java8, python3 (with pip and virtualenv), gradle 4<, make, pdflatex, bibtex, git, maven 3.2.5, docker, docker-compose, kubectl, helm
 
 **Breakdown:**
-* General: java8, python3 (with pip and virtualenv), gradle 4<, make, pdflatex, bibtex
+* General: bash >=4, java8, python3 (with pip and virtualenv), gradle 4<, make, pdflatex, bibtex
 * If building containers from source (DEFAULT): git, maven 3.2.5
 * If local experiments (DEFAULT): docker, docker-compose
 * If remote experiments (-r): kubectl, helm
@@ -144,7 +144,36 @@ If performing remote experiments, email the authors requesting the password for 
 Alternatively, we can provision the cluster for you ourselves on-demand. Pedro may be reached at pmf[lastName]@gmail.com.
 If necessary, we will be available to guide you through the reproduction of experiments.
 
-We will now show a series of scenarios and how the script may be used.
+We will now show a series of scenarios and how the script may be used, but first we show how a machine on AWS can be configured with all the necessary dependencies.
+
+#### Reproducing on AWS
+First, provision a machine with the following sample specifications:
+* Instance type: m5a.8xlarge
+* Storage: EBS gp2 100GB
+* AMI: Ubuntu Server 18.04 LTS (HVM), SSD Volume Type - ami
+
+When the machine is ready, log into it and perform the following commands:
+```bash
+sudo apt update
+sudo apt upgrade
+sudo apt-get install python3-venv python3-pip openjdk-8-jdk-headless gradle make docker.io jq texlive-latex-base gnupg2 pass
+sudo apt remove openjdk-11-jre-headless
+sudo usermod -aG docker ${USER}
+
+sudo curl -L https://github.com/docker/compose/releases/download/v2.2.3/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+
+wget https://archive.apache.org/dist/maven/maven-3/3.2.5/binaries/apache-maven-3.2.5-bin.tar.gz
+sudo tar xvf apache-maven-3.2.5-bin.tar.gz  -C /opt/
+ADD "...:/opt/apache-maven-3.2.5/bin/" >> /etc/environment
+
+source /etc/environment
+# Log out and log back in
+```
+:warning: It is important to logout and log back in so that profiles are reloaded.
+
+At this point all software dependencies are installed and experiments can be reproduced locally as explained below.
 
 #### Local experiments with pre-built images
 
